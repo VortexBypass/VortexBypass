@@ -1,13 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vortex Bypasser</title>
-
-  <!-- Optional: build-time injection fallback -->
-  <!-- <meta name="vortex-api-key" content="%VORTEX_API_KEY%"> -->
-
   <link rel="stylesheet" href="styles.css" />
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
@@ -17,8 +13,7 @@
   <div class="container">
     <input id="urlInput" type="text" placeholder="Enter URL..." />
 
-    <!-- small bypass button (type=button prevents accidental form submit) -->
-    <button id="bypassBtn" type="button">Bypass</button>
+    <button id="bypassBtn" disabled>Bypass</button>
 
     <div class="toggle-container">
       <label class="switch">
@@ -29,8 +24,8 @@
     </div>
 
     <div class="result-box" id="resultBox">
-      <div id="resultText">Result will appear here...</div>
-      <div id="timer" class="timer">00:00.000</div>
+      <div id="resultText">Checking configuration...</div>
+      <div id="timer" class="timer" style="margin-top:8px; font-family:'Courier New', monospace; color:#cfe9ff;">00:00.000</div>
     </div>
 
     <div class="supported-box">
@@ -54,213 +49,169 @@
   </div>
 
   <script>
-    // --- Elements ---
+    // Elements
+    const urlInput = document.getElementById("urlInput");
+    const bypassBtn = document.getElementById("bypassBtn");
     const resultBox = document.getElementById("resultBox");
     const resultText = document.getElementById("resultText");
-    const bypassBtn = document.getElementById("bypassBtn");
     const autoRedirectToggle = document.getElementById("autoRedirect");
     const timerEl = document.getElementById("timer");
-    const urlInput = document.getElementById("urlInput");
 
-    // --- Supported API hosts ---
-    const generalAPIs = ["work.ink", "linkvertise", "link-unlocker.com"];
-    const v2APIs = ["pandadevelopment.net", "keyrblx.com", "krnl.cat"];
-
-    // --- Timer utilities ---
+    // State for timer
     let timerInterval = null;
-    let startTime = null;
+    let startTs = null;
+
+    function formatElapsed(ms) {
+      const totalMs = Math.max(0, Math.floor(ms));
+      const minutes = Math.floor(totalMs / 60000);
+      const seconds = Math.floor((totalMs % 60000) / 1000);
+      const millis = totalMs % 1000;
+      return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(millis).padStart(3,'0')}`;
+    }
+
     function startTimer() {
-      stopTimer(); // ensure clean
-      startTime = performance.now();
+      stopTimer();
+      startTs = performance.now();
       timerEl.textContent = formatElapsed(0);
       timerInterval = setInterval(() => {
-        const elapsed = performance.now() - startTime;
+        const elapsed = performance.now() - startTs;
         timerEl.textContent = formatElapsed(elapsed);
-      }, 16); // ~60fps for smoothness
+      }, 33);
     }
+
     function stopTimer() {
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
       }
-      startTime = null;
-    }
-    function formatElapsed(ms) {
-      const totalMs = Math.max(0, ms | 0);
-      const minutes = Math.floor(totalMs / 60000);
-      const seconds = Math.floor((totalMs % 60000) / 1000);
-      const millis = totalMs % 1000;
-      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2,"0")}.${String(millis).padStart(3,"0")}`;
+      startTs = null;
     }
 
-    // --- UI helpers ---
-    function setStatus(text) {
-      resultText.textContent = text;
+    // UI helpers
+    function showInfo(msg) {
+      resultText.style.color = "#a8d8ff";
+      resultText.textContent = msg;
     }
-    function setError(text) {
-      resultText.textContent = "Error: " + text;
+    function showError(msg) {
+      resultText.style.color = "#ff6b6b";
+      resultText.textContent = "Error: " + msg;
     }
-    function setProcessing(isProcessing) {
-      bypassBtn.disabled = isProcessing;
-      bypassBtn.style.opacity = isProcessing ? "0.85" : "1";
-      if (isProcessing) bypassBtn.textContent = "Processing...";
-      else bypassBtn.textContent = "Bypass";
+    function setProcessing(on) {
+      bypassBtn.disabled = on;
+      bypassBtn.style.opacity = on ? "0.8" : "1";
+      bypassBtn.textContent = on ? "Processing..." : "Bypass";
     }
 
-    // --- Get API key (tries /api/key then meta fallback) ---
-    async function getApiKey() {
-      // Try serverless endpoint first
+    // Check key configuration without exposing it
+    async function checkKeyConfigured() {
       try {
-        const res = await fetch('/api/key', { cache: 'no-store' });
-        if (res.ok) {
-          const j = await res.json();
-          if (j && j.key) return j.key;
+        const res = await fetch('/api/key-check', { method: 'GET', cache: 'no-store' });
+        if (!res.ok) {
+          showError(`Key-check endpoint returned ${res.status}`);
+          bypassBtn.disabled = true;
+          return false;
         }
-      } catch (e) {
-        // ignore, fallback next
-        console.warn('Failed to fetch /api/key:', e);
+        const data = await res.json();
+        if (data && data.ok && data.configured) {
+          showInfo("Ready — API key configured securely on server.");
+          bypassBtn.disabled = false;
+          return true;
+        } else {
+          showError("VORTEX_API_KEY is not configured on the server. Set it in Vercel Project → Settings → Environment Variables.");
+          bypassBtn.disabled = true;
+          return false;
+        }
+      } catch (err) {
+        showError("Cannot reach key-check endpoint: " + (err.message || err));
+        bypassBtn.disabled = true;
+        return false;
       }
-
-      // Fallback to meta tag (build-time injection)
-      const meta = document.querySelector('meta[name="vortex-api-key"]');
-      if (meta && meta.content) return meta.content;
-
-      throw new Error("API key not configured. Set VORTEX_API_KEY in Vercel and expose via /api/key or build-time meta tag.");
     }
 
-    // --- Poll thread helper with max attempts + 0.5s delay ---
-    async function pollThread(threadId, apiKey) {
-      const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${encodeURIComponent(threadId)}`;
-      let attempts = 0;
-      const maxAttempts = 120; // as requested
-      const delayMs = 500;
-      while (attempts < maxAttempts) {
-        attempts++;
-        try {
-          const r = await fetch(pollUrl, { headers: { "x-api-key": apiKey } });
-          if (!r.ok) {
-            // continue polling on non-2xx? decide to treat as transient (you can adjust)
-            console.warn('Polling returned non-OK:', r.status);
-          } else {
-            const data = await r.json();
-            if (data.status === "Done" && data.result) {
-              return { ok: true, result: data.result };
-            }
-            // If thread returns an error field, return it
-            if (data.status === "Error" || data.error) {
-              return { ok: false, error: data.error || 'Thread returned error' };
-            }
-          }
-        } catch (err) {
-          // network or JSON parse errors - bubble out as polling error
-          return { ok: false, error: err.message || String(err) };
-        }
-        // wait
-        await new Promise(r => setTimeout(r, delayMs));
-      }
-      return { ok: false, error: 'Timed out waiting for thread result' };
-    }
-
-    // --- Main bypass flow ---
-    async function handleBypass() {
-      setProcessing(true);
-      setStatus("Validating input...");
+    // call check at startup
+    (async () => {
+      // initial UI
+      resultText.textContent = "Checking configuration...";
       timerEl.textContent = "00:00.000";
+      await checkKeyConfigured();
+    })();
+
+    // main bypass flow -> calls server-side proxy so key never reaches client
+    async function handleBypass() {
+      // Always re-check key-config just before calling (prevents accidental client-side bypass when env changed)
+      const ok = await checkKeyConfigured();
+      if (!ok) return;
 
       const url = urlInput.value.trim();
       if (!url) {
-        setError("Please enter a URL.");
-        setProcessing(false);
+        showError("Please enter a URL.");
         return;
       }
 
-      let apiUrl = "";
-      let useV2 = false;
-      if (generalAPIs.some(d => url.includes(d))) {
-        apiUrl = `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`;
-      } else if (v2APIs.some(d => url.includes(d))) {
-        apiUrl = `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
-        useV2 = true;
-      } else {
-        setError("Unsupported URL.");
-        setProcessing(false);
-        return;
-      }
+      const proxyUrl = `/api/bypass?url=${encodeURIComponent(url)}`;
 
+      setProcessing(true);
+      showInfo("Starting bypass...");
       startTimer();
 
-      let API_KEY;
       try {
-        API_KEY = await getApiKey();
-      } catch (err) {
-        stopTimer();
-        setError(err.message || String(err));
-        setProcessing(false);
-        return;
-      }
+        const res = await fetch(proxyUrl, { method: 'GET' });
+        const text = await res.text().catch(()=>null);
+        let body = null;
+        try { body = text ? JSON.parse(text) : null; } catch(e) { body = null; }
 
-      setStatus("Sending request...");
-      try {
-        const res = await fetch(apiUrl, { headers: { "x-api-key": API_KEY } });
         if (!res.ok) {
-          const txt = await res.text().catch(()=>null);
           stopTimer();
-          setError(`Remote API returned ${res.status}${txt ? `: ${txt}` : ''}`);
+          const errMsg = (body && body.error) ? body.error : `Proxy returned ${res.status}`;
+          showError(errMsg);
           setProcessing(false);
           return;
         }
-        const data = await res.json();
 
-        // v2 thread flow
-        if (useV2 && data.ThreadID) {
-          setStatus("Task started — polling for completion...");
-          const polled = await pollThread(data.ThreadID, API_KEY);
-          if (polled.ok) {
-            stopTimer();
-            setStatus(polled.result);
-            if (autoRedirectToggle.checked) {
-              // small delay so user sees the result and timer stop
-              setTimeout(()=> window.location.href = polled.result, 200);
-            }
-          } else {
-            stopTimer();
-            setError(polled.error || 'Polling failed');
-          }
-        } else if (data.result) {
+        if (body && body.ok && body.result) {
           stopTimer();
-          setStatus(data.result);
+          // show server-provided elapsed if available, otherwise keep client timer value
+          if (body.elapsedMs != null) {
+            timerEl.textContent = formatElapsed(body.elapsedMs);
+          }
+          showInfo(body.result);
+          // auto-redirect if requested
           if (autoRedirectToggle.checked) {
-            setTimeout(()=> window.location.href = data.result, 200);
+            setTimeout(() => window.location.href = body.result, 200);
           }
         } else {
           stopTimer();
-          setError("Unexpected response from API.");
+          showError((body && body.error) ? body.error : 'Unexpected proxy response');
         }
       } catch (err) {
         stopTimer();
-        setError(err.message || String(err));
+        showError(err.message || String(err));
       } finally {
         setProcessing(false);
       }
     }
 
-    // Add click and Enter handlers
-    bypassBtn.addEventListener("click", handleBypass);
-    urlInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+    // keyboard enter to trigger
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
         e.preventDefault();
         handleBypass();
       }
     });
 
-    // --- Helpful: expose debug function to console for quick testing ---
-    window._vb_test = {
-      startTimer, stopTimer, formatElapsed
+    // click
+    bypassBtn.addEventListener('click', handleBypass);
+
+    // Optional: expose a manual re-check in console
+    window._vb = {
+      checkKeyConfigured,
+      handleBypass,
+      startTimer,
+      stopTimer
     };
   </script>
 
-  <!-- Vercel Analytics + Speed Insights (defer for performance) -->
-  <!-- Ensure you enabled Analytics & Speed Insights in the Vercel dashboard -->
+  <!-- Vercel Analytics + Speed Insights (deferred) -->
   <script defer src="https://cdn.vercel-insights.com/v1/script.analytics.js"></script>
   <script defer src="https://cdn.vercel-insights.com/v1/script.debug.js"></script>
 </body>
