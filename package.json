@@ -1,14 +1,11 @@
 {
   "name": "vortex-bypasser",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "vercel build",
-    "start": "vercel start"
+    "dev": "vercel dev"
   },
-  "engines": {
-    "node": "20.x"
-  },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {}
 }
