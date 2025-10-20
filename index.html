@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vortex Bypasser</title>
+
+  <!-- If you prefer build-time injection, have your build replace %VORTEX_API_KEY% with the env var:
+       <meta name="vortex-api-key" content="%VORTEX_API_KEY%">
+       (Many static hosts allow injecting env values at build time.)
+  -->
   <link rel="stylesheet" href="styles.css" />
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
@@ -13,17 +18,14 @@
   <div class="container">
     <input id="urlInput" type="text" placeholder="Enter URL..." />
 
-    <button id="bypassBtn">
-      <span class="btn-text">Bypass</span>
-      <span class="timer" id="timer">0.0s</span>
-    </button>
+    <button id="bypassBtn">Bypass</button>
 
     <div class="toggle-container">
       <label class="switch">
         <input type="checkbox" id="autoRedirect" />
         <span class="slider"></span>
       </label>
-      <p>Auto Redirect</p>
+      <p class="toggle-label">Auto Redirect</p>
     </div>
 
     <div class="result-box" id="resultBox">Result will appear here...</div>
@@ -49,33 +51,36 @@
   </div>
 
   <script>
-    // API key will be handled via environment variables
-    const API_KEY = "<?= process.env.VORTEX_API_KEY ?>";
     const resultBox = document.getElementById("resultBox");
     const bypassBtn = document.getElementById("bypassBtn");
-    const btnText = document.querySelector('.btn-text');
-    const timerElement = document.getElementById('timer');
     const autoRedirectToggle = document.getElementById("autoRedirect");
-
-    let timerInterval;
-    let startTime;
 
     const generalAPIs = ["work.ink", "linkvertise", "link-unlocker.com"];
     const v2APIs = ["pandadevelopment.net", "keyrblx.com", "krnl.cat"];
 
-    function startTimer() {
-      startTime = Date.now();
-      clearInterval(timerInterval);
-      timerInterval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        timerElement.textContent = `${elapsed.toFixed(1)}s`;
-      }, 100);
-    }
+    // Try to obtain API key securely:
+    // 1) First try a serverless endpoint /api/key which should return JSON: { "key": "<your-key>" }
+    //    (Create a small serverless function on Vercel that reads process.env.VORTEX_API_KEY and returns it.)
+    // 2) Fallback to a build-time meta tag if you inject the key during build.
+    async function getApiKey() {
+      // attempt serverless endpoint
+      try {
+        const res = await fetch('/api/key', { cache: 'no-store' });
+        if (res.ok) {
+          const j = await res.json();
+          if (j && j.key) return j.key;
+        }
+      } catch (e) {
+        // ignore and try meta fallback
+      }
 
-    function stopTimer() {
-      clearInterval(timerInterval);
-      const finalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      timerElement.textContent = `${finalTime}s`;
+      // fallback: meta tag injected at build-time
+      const meta = document.querySelector('meta[name="vortex-api-key"]');
+      if (meta && meta.content) return meta.content;
+
+      // not found
+      resultBox.textContent = "API key not configured. Please set VORTEX_API_KEY in Vercel and expose it via /api/key or a build-time meta tag.";
+      throw new Error("API key not found");
     }
 
     async function handleBypass() {
@@ -98,11 +103,15 @@
         return;
       }
 
-      // Start timer and update UI
-      startTimer();
       resultBox.textContent = "Processing...";
-      bypassBtn.disabled = true;
-      btnText.textContent = "Bypassing";
+
+      let API_KEY;
+      try {
+        API_KEY = await getApiKey();
+      } catch (err) {
+        // getApiKey already set user-facing message
+        return;
+      }
 
       try {
         const res = await fetch(apiUrl, { headers: { "x-api-key": API_KEY } });
@@ -110,56 +119,56 @@
 
         if (useV2 && data.ThreadID) {
           resultBox.textContent = "Task started — polling for completion...";
-          await pollThread(data.ThreadID);
+          await pollThread(data.ThreadID, API_KEY);
         } else if (data.result) {
-          stopTimer();
           resultBox.textContent = data.result;
           if (autoRedirectToggle.checked) window.location.href = data.result;
         } else {
-          stopTimer();
           resultBox.textContent = "Unexpected response.";
         }
       } catch (err) {
-        stopTimer();
         resultBox.textContent = "Error: " + err.message;
-      } finally {
-        bypassBtn.disabled = false;
-        btnText.textContent = "Bypass";
       }
     }
 
-    async function pollThread(threadId) {
+    async function pollThread(threadId, apiKey) {
       const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${threadId}`;
       let attempts = 0;
-      const maxAttempts = 120;
+      const maxAttempts = 120; // as requested: 120 tries
+      const delayMs = 500;     // 0.5s between polls
 
       while (attempts < maxAttempts) {
         attempts++;
         try {
-          const res = await fetch(pollUrl, { headers: { "x-api-key": API_KEY } });
+          const res = await fetch(pollUrl, { headers: { "x-api-key": apiKey } });
           const data = await res.json();
 
           if (data.status === "Done" && data.result) {
-            stopTimer();
             resultBox.textContent = data.result;
             if (autoRedirectToggle.checked) window.location.href = data.result;
             return;
           }
         } catch (err) {
-          stopTimer();
           resultBox.textContent = "Polling error: " + err.message;
           return;
         }
 
-        await new Promise(r => setTimeout(r, 500));
+        // wait 0.5s
+        await new Promise(r => setTimeout(r, delayMs));
       }
 
-      stopTimer();
       resultBox.textContent = "Timed out after 60 seconds — no result received.";
     }
 
     bypassBtn.addEventListener("click", handleBypass);
-  </script>
 
+    // optional: allow Enter key to trigger bypass
+    document.getElementById('urlInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        bypassBtn.click();
+      }
+    });
+  </script>
 </body>
 </html>
