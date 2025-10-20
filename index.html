@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vortex Bypasser</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Vortex Bypasser</h1>
+      <p class="tagline">Fast, simple bypasses — Powered By Trw.lat</p>
+    </header>
+
+    <section class="card">
+      <label for="urlInput" class="label">Enter URL</label>
+      <input id="urlInput" type="url" placeholder="https://linkvertise.com/..." autocomplete="url" />
+      <div class="controls-row">
+        <button id="bypassBtn" class="btn primary">Bypass</button>
+        <div class="toggle-wrap">
+          <label class="switch">
+            <input id="autoRedirect" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label">Auto redirect</span>
+        </div>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <div id="resultBox" class="result box hidden"></div>
+
+      <div class="buttons-row">
+        <a class="btn ghost" target="_blank" rel="noopener" href="https://discord.gg/PCQvUSUEsE">Join Discord</a>
+        <a class="btn ghost" target="_blank" rel="noopener" href="https://discord.com/oauth2/authorize?client_id=1355400268103290910">Invite Bot</a>
+      </div>
+    </section>
+
+    <section class="card small">
+      <h3>Supported</h3>
+      <ul id="supportedList" class="supported">
+        <li>https://work.ink</li>
+        <li>https://linkvertise.com</li>
+        <li>https://link-unlocker.com</li>
+        <li>https://pandadevelopment.net</li>
+        <li>https://keyrblx.com</li>
+        <li>https://krnl.cat</li>
+      </ul>
+      <p class="note">Only the domains above are accepted. v1 is used for the first three; v2 is used for the last three.</p>
+    </section>
+
+    <footer class="footer">
+      <span>Powered By Trw.lat</span>
+      <small>Vortex Bypasser</small>
+    </footer>
+  </main>
+
+<script>
+/*
+Client logic:
+- Dynamically fetches public reCAPTCHA site key from /api/recaptcha-key (must be set in env).
+- Loads grecaptcha script using that site key.
+- When user clicks Bypass, executes grecaptcha (action 'bypass') to retrieve token and sends token with url to /api/proxy.
+- Handles v1 and v2 responses. Polls /api/threadcheck every 500ms for v2 ThreadID until status Done.
+*/
+
+const POLL_INTERVAL = 500;
+
+const urlInput = document.getElementById('urlInput');
+const bypassBtn = document.getElementById('bypassBtn');
+const statusEl = document.getElementById('status');
+const resultBox = document.getElementById('resultBox');
+const autoRedirect = document.getElementById('autoRedirect');
+
+let RECAPTCHA_SITE_KEY = null;
+let grecaptchaLoaded = false;
+
+function setStatus(msg, type='info') {
+  statusEl.textContent = msg;
+  statusEl.className = 'status ' + type;
+}
+
+function showResult(obj) {
+  resultBox.classList.remove('hidden');
+  resultBox.textContent = JSON.stringify(obj, null, 2);
+}
+
+function parseHostname(input) {
+  try {
+    const u = new URL(input);
+    return u.hostname.replace(/^www\./,'').toLowerCase();
+  } catch(e) {
+    return null;
+  }
+}
+
+// fetch site key and load grecaptcha script dynamically
+async function initRecaptcha() {
+  try {
+    const res = await fetch('/api/recaptcha-key');
+    const j = await res.json();
+    if (j && j.siteKey) {
+      RECAPTCHA_SITE_KEY = j.siteKey;
+      // load script
+      const s = document.createElement('script');
+      s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(RECAPTCHA_SITE_KEY)}`;
+      s.onload = () => { grecaptchaLoaded = true; };
+      s.onerror = () => { console.warn('Failed to load grecaptcha script'); };
+      document.head.appendChild(s);
+    } else {
+      console.warn('No RECAPTCHA_SITE_KEY configured on server. Recaptcha will be skipped.');
+    }
+  } catch (e) {
+    console.warn('Unable to fetch recaptcha key', e);
+  }
+}
+initRecaptcha();
+
+async function executeRecaptcha() {
+  if (!RECAPTCHA_SITE_KEY || !window.grecaptcha || !grecaptchaLoaded) return '';
+  try {
+    return await grecaptcha.execute(RECAPTCHA_SITE_KEY, {action: 'bypass'});
+  } catch (e) {
+    console.warn('grecaptcha.execute error', e);
+    return '';
+  }
+}
+
+async function postProxy(url, recaptchaToken = '') {
+  const body = { url, recaptchaToken };
+  const res = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+let pollTimer = null;
+async function pollThread(threadId) {
+  setStatus('Polling for result...', 'info');
+  return new Promise((resolve, reject) => {
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('/api/threadcheck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: threadId })
+        });
+        const data = await res.json();
+        if (!data) return;
+        const st = (data.status || '').toLowerCase();
+        if (st === 'done') {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          resolve(data);
+        }
+      } catch (err) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        reject(err);
+      }
+    }, POLL_INTERVAL);
+  });
+}
+
+bypassBtn.addEventListener('click', async () => {
+  setStatus('', '');
+  resultBox.classList.add('hidden');
+  resultBox.textContent = '';
+
+  const url = urlInput.value.trim();
+  if (!url) {
+    setStatus('Please enter a URL.', 'error');
+    return;
+  }
+
+  setStatus('Preparing reCAPTCHA...', 'info');
+  bypassBtn.disabled = true;
+
+  // execute recaptcha if available
+  let token = '';
+  try {
+    token = await executeRecaptcha();
+  } catch (e) {
+    token = '';
+  }
+
+  setStatus('Sending request to server...', 'info');
+
+  try {
+    const json = await postProxy(url, token);
+    if (!json) {
+      setStatus('No response from server.', 'error');
+      bypassBtn.disabled = false;
+      return;
+    }
+
+    // v1 style
+    if (json.result && json.success !== undefined) {
+      setStatus('Done (v1).', 'success');
+      showResult(json);
+      if (autoRedirect.checked && typeof json.result === 'string') {
+        try {
+          const maybeUrl = new URL(json.result);
+          window.location.href = maybeUrl.href;
+          return;
+        } catch (e) {}
+      }
+    }
+    // v2 started
+    else if (json.status && (json.ThreadID || json.threadID || json.task_id)) {
+      const threadId = json.ThreadID || json.threadID || json.task_id;
+      setStatus('Task started — polling...', 'info');
+      showResult(json);
+      const final = await pollThread(threadId);
+      if (final) {
+        setStatus('Done (v2).', 'success');
+        showResult(final);
+        if (autoRedirect.checked && final.result && typeof final.result === 'string') {
+          try {
+            const maybeUrl = new URL(final.result);
+            window.location.href = maybeUrl.href;
+            return;
+          } catch (e) {}
+        }
+      }
+    } else {
+      setStatus('Response received.', 'info');
+      showResult(json);
+    }
+
+  } catch (err) {
+    console.error(err);
+    setStatus('Error: ' + (err.message || err), 'error');
+  } finally {
+    bypassBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
