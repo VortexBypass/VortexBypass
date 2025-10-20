@@ -8,12 +8,28 @@
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
-  <h1>🌪️ Vortex Bypasser</h1>
+  <!-- Animated Background Elements -->
+  <div class="animated-background">
+    <div class="background-grid"></div>
+    <div class="floating-orb orb-1"></div>
+    <div class="floating-orb orb-2"></div>
+    <div class="floating-orb orb-3"></div>
+    <div class="floating-orb orb-4"></div>
+    <div class="floating-particle particle-1"></div>
+    <div class="floating-particle particle-2"></div>
+    <div class="floating-particle particle-3"></div>
+    <div class="floating-particle particle-4"></div>
+    <div class="floating-particle particle-5"></div>
+    <div class="floating-particle particle-6"></div>
+  </div>
+
+  <h1>Vortex</h1>
+  <h2>Bypasser</h2>
 
   <div class="container">
     <input id="urlInput" type="text" placeholder="Enter URL..." />
 
-    <button id="bypassBtn" disabled>Bypass</button>
+    <button id="bypassBtn" disabled>BYPASS</button>
 
     <div class="toggle-container">
       <label class="switch">
@@ -24,7 +40,7 @@
     </div>
 
     <div class="result-box" id="resultBox">
-      <div id="resultText">Checking configuration...</div>
+      <div id="resultText">Ready enter a url</div>
       <div id="timer" class="timer" style="margin-top:8px; font-family:'Courier New', monospace; color:#cfe9ff;">00:00.000</div>
     </div>
 
@@ -99,7 +115,7 @@
     function setProcessing(on) {
       bypassBtn.disabled = on;
       bypassBtn.style.opacity = on ? "0.8" : "1";
-      bypassBtn.textContent = on ? "Processing..." : "Bypass";
+      bypassBtn.textContent = on ? "Processing..." : "BYPASS";
     }
 
     // Check key configuration without exposing it
@@ -113,7 +129,6 @@
         }
         const data = await res.json();
         if (data && data.ok && data.configured) {
-          // <-- changed message as requested:
           showInfo("Ready enter a url");
           bypassBtn.disabled = false;
           return true;
@@ -131,9 +146,6 @@
 
     // call check at startup
     (async () => {
-      // initial UI
-      resultText.textContent = "Checking configuration...";
-      timerEl.textContent = "00:00.000";
       await checkKeyConfigured();
     })();
 
