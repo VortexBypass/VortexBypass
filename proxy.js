@@ -1,5 +1,5 @@
 // api/proxy.js
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
+// Uses global fetch (Node 18+) — no node-fetch dependency required.
 
 const TRW_API_KEY = process.env.TRW_API_KEY || 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45';
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET || '';
@@ -10,11 +10,9 @@ const ALLOW_SUBDOMAINS = (String(process.env.ALLOW_SUBDOMAINS || 'true').toLower
 const ALLOWED_V1 = ['work.ink','linkvertise.com','link-unlocker.com'];
 const ALLOWED_V2 = ['pandadevelopment.net','keyrblx.com','krnl.cat'];
 
-// Optional per-domain allowed path regexes (strings)
+// Optional per-domain allowed path regexes
 const ALLOWED_PATHS = {
-  // Example: only allow specific paths on a domain:
-  // 'keyrblx.com': ['^/s/.*', '^/dl/.*']
-  // Leave empty or remove entries to allow any path for that domain.
+  // 'example.com': ['^/allowed-path/.*']
 };
 
 function getHostname(u) {
@@ -37,7 +35,6 @@ function allowedModeForHostname(host, pathname) {
   if (!host) return null;
   for (const d of ALLOWED_V1) {
     if (hostnameMatchesDomain(host, d)) {
-      // check allowed path if any configured
       const paths = ALLOWED_PATHS[d];
       if (paths && paths.length) {
         const match = paths.some(rx => new RegExp(rx).test(pathname));
@@ -104,16 +101,11 @@ module.exports = async (req, res) => {
         res.status(403).json({ error: 'Recaptcha verification failed', details: verifyJson });
         return;
       }
-      // If score present (v3), check threshold
-      if (typeof verifyJson.score === 'number') {
-        if (verifyJson.score < RECAPTCHA_MIN_SCORE) {
-          res.status(403).json({ error: 'Recaptcha score too low', score: verifyJson.score });
-          return;
-        }
+      if (typeof verifyJson.score === 'number' && verifyJson.score < RECAPTCHA_MIN_SCORE) {
+        res.status(403).json({ error: 'Recaptcha score too low', score: verifyJson.score });
+        return;
       }
-      // Optional: if action is present, ensure it matches 'bypass'
       if (verifyJson.action && verifyJson.action !== 'bypass') {
-        // not necessarily fatal — but reject to be strict
         res.status(403).json({ error: 'Recaptcha action mismatch', action: verifyJson.action });
         return;
       }
@@ -127,12 +119,9 @@ module.exports = async (req, res) => {
   }
 
   try {
-    let targetUrl;
-    if (mode === 'v1') {
-      targetUrl = `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`;
-    } else {
-      targetUrl = `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
-    }
+    const targetUrl = mode === 'v1'
+      ? `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`
+      : `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
 
     const apiRes = await fetch(targetUrl, {
       method: 'GET',
