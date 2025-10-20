@@ -4,7 +4,35 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Vortex Bypasser</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    :root{--bg:#0f1724;--accent:#6ee7b7;--muted:#9aa4b2;--danger:#ff6b6b;--success:#34d399}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071029 0%, #071026 60%);color:#e6eef6;padding:28px}
+    .container{max-width:920px;margin:0 auto}
+    header{text-align:center;margin-bottom:20px}
+    h1{margin:0;font-size:28px}
+    .tagline{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .card{background:rgba(255,255,255,0.02);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 6px 24px rgba(2,6,23,0.6)}
+    .label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+    input[type="url"]{width:100%;padding:14px;border-radius:10px;border:none;background:rgba(255,255,255,0.03);color:inherit;font-size:15px;margin-bottom:12px}
+    .controls-row{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+    .btn{border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    .primary{background:linear-gradient(90deg,var(--accent),#60a5fa);color:#03202a}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:10px 12px;border-radius:10px;text-decoration:none}
+    .status{margin-top:12px;font-size:13px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.01);color:var(--muted)}
+    .status.success{color:var(--success)}
+    .status.error{color:var(--danger)}
+    .result{margin-top:10px;padding:12px;background:rgba(0,0,0,0.35);border-radius:8px;font-family:ui-monospace,monospace;font-size:13px;white-space:pre-wrap;color:#dbeafe}
+    .hidden{display:none}
+    .supported{list-style:none;padding-left:0;margin:8px 0 0;color:var(--muted)}
+    .footer{margin-top:18px;display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+    .toggle-wrap{display:flex;align-items:center;gap:10px;margin-left:auto}
+    .switch{position:relative;display:inline-block;width:44px;height:26px}
+    .switch input{display:none}
+    .slider{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.06);border-radius:34px}
+    .slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+    .switch input:checked + .slider{background:linear-gradient(90deg,var(--accent),#60a5fa)}
+    .switch input:checked + .slider:before{transform:translateX(18px)}
+  </style>
 </head>
 <body>
   <main class="container">
@@ -14,30 +42,26 @@
     </header>
 
     <section class="card">
-      <label for="urlInput" class="label">Enter URL</label>
-      <input id="urlInput" type="url" placeholder="https://linkvertise.com/..." autocomplete="url" />
+      <label class="label" for="urlInput">Enter URL</label>
+      <input id="urlInput" type="url" placeholder="https://linkvertise.com/..." />
       <div class="controls-row">
         <button id="bypassBtn" class="btn primary">Bypass</button>
         <div class="toggle-wrap">
-          <label class="switch">
-            <input id="autoRedirect" type="checkbox" />
-            <span class="slider"></span>
-          </label>
-          <span class="toggle-label">Auto redirect</span>
+          <label class="switch"><input id="autoRedirect" type="checkbox" /><span class="slider"></span></label>
+          <span style="color:var(--muted);font-size:13px;margin-left:8px">Auto redirect</span>
         </div>
       </div>
 
       <div id="status" class="status"></div>
+      <div id="resultBox" class="result hidden"></div>
 
-      <div id="resultBox" class="result box hidden"></div>
-
-      <div class="buttons-row">
-        <a class="btn ghost" target="_blank" rel="noopener" href="https://discord.gg/PCQvUSUEsE">Join Discord</a>
-        <a class="btn ghost" target="_blank" rel="noopener" href="https://discord.com/oauth2/authorize?client_id=1355400268103290910">Invite Bot</a>
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <a class="ghost" target="_blank" rel="noopener" href="https://discord.gg/PCQvUSUEsE">Join Discord</a>
+        <a class="ghost" target="_blank" rel="noopener" href="https://discord.com/oauth2/authorize?client_id=1355400268103290910">Invite Bot</a>
       </div>
     </section>
 
-    <section class="card small">
+    <section class="card">
       <h3>Supported</h3>
       <ul id="supportedList" class="supported">
         <li>https://work.ink</li>
@@ -47,7 +71,7 @@
         <li>https://keyrblx.com</li>
         <li>https://krnl.cat</li>
       </ul>
-      <p class="note">Only the domains above are accepted. v1 is used for the first three; v2 is used for the last three.</p>
+      <p style="color:var(--muted);font-size:12px;margin-top:8px">v1: first three, v2: last three. Only these domains are accepted.</p>
     </section>
 
     <footer class="footer">
@@ -58,14 +82,21 @@
 
 <script>
 /*
-Client logic:
-- Dynamically fetches public reCAPTCHA site key from /api/recaptcha-key (must be set in env).
-- Loads grecaptcha script using that site key.
-- When user clicks Bypass, executes grecaptcha (action 'bypass') to retrieve token and sends token with url to /api/proxy.
-- Handles v1 and v2 responses. Polls /api/threadcheck every 500ms for v2 ThreadID until status Done.
+Client-only Vortex Bypasser
+- Directly calls trw.lat endpoints from browser (no proxy).
+- Replace TRW_API_KEY with your key (NOTE: this is public if included here).
+- If trw.lat doesn't allow CORS or blocking x-api-key header, requests will fail with CORS errors.
+- Supports reCAPTCHA v3 (optional): set RECAPTCHA_SITE_KEY to enable grecaptcha execute.
 */
 
-const POLL_INTERVAL = 500;
+///////////////////// CONFIG - EDIT THESE (client-visible!) /////////////////////
+const TRW_API_KEY = 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45'; // <-- PUBLIC if you put it here
+const RECAPTCHA_SITE_KEY = ''; // <-- optional: put your reCAPTCHA site key here (v3/invisible)
+const POLL_INTERVAL = 500; // ms for v2 thread polling
+///////////////////////////////////////////////////////////////////////////////
+
+const ALLOWED_V1 = ['work.ink','linkvertise.com','link-unlocker.com'];
+const ALLOWED_V2 = ['pandadevelopment.net','keyrblx.com','krnl.cat'];
 
 const urlInput = document.getElementById('urlInput');
 const bypassBtn = document.getElementById('bypassBtn');
@@ -73,82 +104,67 @@ const statusEl = document.getElementById('status');
 const resultBox = document.getElementById('resultBox');
 const autoRedirect = document.getElementById('autoRedirect');
 
-let RECAPTCHA_SITE_KEY = null;
-let grecaptchaLoaded = false;
+let grecaptchaReady = false;
+if (RECAPTCHA_SITE_KEY) {
+  const s = document.createElement('script');
+  s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(RECAPTCHA_SITE_KEY)}`;
+  s.onload = () => { grecaptchaReady = true; console.log('grecaptcha loaded'); };
+  s.onerror = () => { console.warn('Failed to load grecaptcha'); };
+  document.head.appendChild(s);
+}
 
-function setStatus(msg, type='info') {
+function setStatus(msg, cls='') {
   statusEl.textContent = msg;
-  statusEl.className = 'status ' + type;
+  statusEl.className = 'status' + (cls ? ' ' + cls : '');
 }
 
 function showResult(obj) {
   resultBox.classList.remove('hidden');
-  resultBox.textContent = JSON.stringify(obj, null, 2);
+  try { resultBox.textContent = JSON.stringify(obj, null, 2); } catch { resultBox.textContent = String(obj); }
 }
 
 function parseHostname(input) {
-  try {
-    const u = new URL(input);
-    return u.hostname.replace(/^www\./,'').toLowerCase();
-  } catch(e) {
-    return null;
-  }
+  try { return new URL(input).hostname.replace(/^www\./,'').toLowerCase(); } catch { return null; }
 }
 
-// fetch site key and load grecaptcha script dynamically
-async function initRecaptcha() {
-  try {
-    const res = await fetch('/api/recaptcha-key');
-    const j = await res.json();
-    if (j && j.siteKey) {
-      RECAPTCHA_SITE_KEY = j.siteKey;
-      // load script
-      const s = document.createElement('script');
-      s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(RECAPTCHA_SITE_KEY)}`;
-      s.onload = () => { grecaptchaLoaded = true; };
-      s.onerror = () => { console.warn('Failed to load grecaptcha script'); };
-      document.head.appendChild(s);
-    } else {
-      console.warn('No RECAPTCHA_SITE_KEY configured on server. Recaptcha will be skipped.');
-    }
-  } catch (e) {
-    console.warn('Unable to fetch recaptcha key', e);
-  }
+function checkAllowed(host) {
+  if (!host) return null;
+  if (ALLOWED_V1.includes(host) || ALLOWED_V1.some(d => host.endsWith('.' + d))) return 'v1';
+  if (ALLOWED_V2.includes(host) || ALLOWED_V2.some(d => host.endsWith('.' + d))) return 'v2';
+  return null;
 }
-initRecaptcha();
 
-async function executeRecaptcha() {
-  if (!RECAPTCHA_SITE_KEY || !window.grecaptcha || !grecaptchaLoaded) return '';
+async function execRecaptcha() {
+  if (!RECAPTCHA_SITE_KEY || !window.grecaptcha || !grecaptchaReady) return '';
   try {
     return await grecaptcha.execute(RECAPTCHA_SITE_KEY, {action: 'bypass'});
   } catch (e) {
-    console.warn('grecaptcha.execute error', e);
+    console.warn('grecaptcha execute failed', e);
     return '';
   }
 }
 
-async function postProxy(url, recaptchaToken = '') {
-  const body = { url, recaptchaToken };
-  const res = await fetch('/api/proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+async function callTrwGet(endpointUrl) {
+  // endpointUrl must be full https://trw.lat/...
+  // Use fetch with x-api-key header. CORS must allow this!
+  const res = await fetch(endpointUrl, {
+    method: 'GET',
+    headers: { 'x-api-key': TRW_API_KEY, 'Accept': 'application/json' },
+    credentials: 'omit'
   });
-  return res.json();
+  const text = await res.text();
+  try { return { ok: res.ok, status: res.status, body: JSON.parse(text) }; } catch { return { ok: res.ok, status: res.status, body: text }; }
 }
 
 let pollTimer = null;
-async function pollThread(threadId) {
-  setStatus('Polling for result...', 'info');
+function startPoll(threadId) {
   return new Promise((resolve, reject) => {
     pollTimer = setInterval(async () => {
       try {
-        const res = await fetch('/api/threadcheck', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: threadId })
-        });
-        const data = await res.json();
+        const target = `https://trw.lat/api/v2/threadcheck?id=${encodeURIComponent(threadId)}`;
+        const resp = await callTrwGet(target);
+        if (!resp) return;
+        const data = resp.body;
         if (!data) return;
         const st = (data.status || '').toLowerCase();
         if (st === 'done') {
@@ -171,69 +187,57 @@ bypassBtn.addEventListener('click', async () => {
   resultBox.textContent = '';
 
   const url = urlInput.value.trim();
-  if (!url) {
-    setStatus('Please enter a URL.', 'error');
-    return;
-  }
+  if (!url) { setStatus('Please enter a URL.', 'error'); return; }
+  const host = parseHostname(url);
+  const mode = checkAllowed(host);
+  if (!mode) { setStatus('This URL is not supported. See supported list.', 'error'); return; }
 
-  setStatus('Preparing reCAPTCHA...', 'info');
   bypassBtn.disabled = true;
+  setStatus('Preparing reCAPTCHA...', 'info');
 
-  // execute recaptcha if available
-  let token = '';
-  try {
-    token = await executeRecaptcha();
-  } catch (e) {
-    token = '';
-  }
-
-  setStatus('Sending request to server...', 'info');
+  const token = await execRecaptcha(); // may be ''
+  setStatus('Calling TRW API...', 'info');
 
   try {
-    const json = await postProxy(url, token);
-    if (!json) {
-      setStatus('No response from server.', 'error');
-      bypassBtn.disabled = false;
-      return;
-    }
+    const target = mode === 'v1'
+      ? `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}${token?`&recaptchaToken=${encodeURIComponent(token)}`:''}`
+      : `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}${token?`&recaptchaToken=${encodeURIComponent(token)}`:''}`;
 
-    // v1 style
-    if (json.result && json.success !== undefined) {
+    const resp = await callTrwGet(target);
+    if (!resp) { setStatus('No response from TRW API.', 'error'); bypassBtn.disabled=false; return; }
+
+    // Show raw response
+    showResult(resp);
+
+    // If v1 style: { result, success }
+    if (resp.body && resp.body.result && (resp.body.success !== undefined)) {
       setStatus('Done (v1).', 'success');
-      showResult(json);
-      if (autoRedirect.checked && typeof json.result === 'string') {
-        try {
-          const maybeUrl = new URL(json.result);
-          window.location.href = maybeUrl.href;
-          return;
-        } catch (e) {}
+      if (autoRedirect.checked && typeof resp.body.result === 'string') {
+        try { window.location.href = resp.body.result; return; } catch(e) {}
       }
     }
-    // v2 started
-    else if (json.status && (json.ThreadID || json.threadID || json.task_id)) {
-      const threadId = json.ThreadID || json.threadID || json.task_id;
-      setStatus('Task started — polling...', 'info');
-      showResult(json);
-      const final = await pollThread(threadId);
+    // If v2 started: { status: "started", ThreadID, next }
+    else if (resp.body && (resp.body.ThreadID || resp.body.threadID || resp.body.task_id)) {
+      const threadId = resp.body.ThreadID || resp.body.threadID || resp.body.task_id;
+      setStatus('Task started — polling for completion...', 'info');
+      const final = await startPoll(threadId);
       if (final) {
         setStatus('Done (v2).', 'success');
         showResult(final);
         if (autoRedirect.checked && final.result && typeof final.result === 'string') {
-          try {
-            const maybeUrl = new URL(final.result);
-            window.location.href = maybeUrl.href;
-            return;
-          } catch (e) {}
+          try { window.location.href = final.result; return; } catch(e) {}
         }
       }
     } else {
-      setStatus('Response received.', 'info');
-      showResult(json);
+      setStatus('Response received (unknown shape).', 'info');
     }
-
   } catch (err) {
-    console.error(err);
-    setStatus('Error: ' + (err.message || err), 'error');
+    console.error('Error:', err);
+    if (err && err.message && err.message.includes('CORS')) {
+      setStatus('CORS error: the trw.lat API blocked the request. Use a server-side proxy or enable CORS on the API.', 'error');
+    } else {
+      setStatus('Error: ' + (err.message || String(err)), 'error');
+    }
   } finally {
     bypassBtn.disabled = false;
   }
