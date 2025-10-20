@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     }
 
     const response = await fetch(apiUrl, {
-      headers: { "x-api-key": API_KEY }
+      headers: { "x-api-key": VORTEX_API_KEY }
     });
     
     const data = await response.json();
