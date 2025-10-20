@@ -1,299 +1,124 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vortex Bypasser</title>
-  <style>
-    :root{--bg:#0f1724;--accent:#6ee7b7;--muted:#9aa4b2;--danger:#ff6b6b;--success:#34d399}
-    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071029 0%, #071026 60%);color:#e6eef6;padding:28px}
-    .container{max-width:920px;margin:0 auto}
-    header{text-align:center;margin-bottom:20px}
-    h1{margin:0;font-size:28px}
-    .tagline{margin:6px 0 0;color:var(--muted);font-size:13px}
-    .card{background:rgba(255,255,255,0.02);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 6px 24px rgba(2,6,23,0.6)}
-    .label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
-    input[type="url"]{width:100%;padding:14px;border-radius:10px;border:none;background:rgba(255,255,255,0.03);color:inherit;font-size:15px;margin-bottom:12px}
-    .controls-row{display:flex;gap:12px;align-items:center;margin-bottom:10px}
-    .btn{border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
-    .primary{background:linear-gradient(90deg,var(--accent),#60a5fa);color:#03202a}
-    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:10px 12px;border-radius:10px;text-decoration:none}
-    .status{margin-top:12px;font-size:13px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.01);color:var(--muted)}
-    .status.success{color:var(--success)}
-    .status.error{color:var(--danger)}
-    .result{margin-top:10px;padding:12px;background:rgba(0,0,0,0.35);border-radius:8px;font-family:ui-monospace,monospace;font-size:13px;white-space:pre-wrap;color:#dbeafe}
-    .hidden{display:none}
-    .supported{list-style:none;padding-left:0;margin:8px 0 0;color:var(--muted)}
-    .footer{margin-top:18px;display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
-    .toggle-wrap{display:flex;align-items:center;gap:10px;margin-left:auto}
-    .switch{position:relative;display:inline-block;width:44px;height:26px}
-    .switch input{display:none}
-    .slider{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.06);border-radius:34px}
-    .slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-    .switch input:checked + .slider{background:linear-gradient(90deg,var(--accent),#60a5fa)}
-    .switch input:checked + .slider:before{transform:translateX(18px)}
-    .small-note{font-size:12px;color:var(--muted);margin-top:8px}
-  </style>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>Vortex Bypasser</h1>
-      <p class="tagline">Fast, simple bypasses — Powered By Trw.lat</p>
-    </header>
+  <h1>🌪️ Vortex Bypasser</h1>
 
-    <section class="card">
-      <label class="label" for="urlInput">Enter URL</label>
-      <input id="urlInput" type="url" placeholder="https://linkvertise.com/..." />
-      <div class="controls-row">
-        <button id="bypassBtn" class="btn primary">Bypass</button>
-        <div class="toggle-wrap">
-          <label class="switch"><input id="autoRedirect" type="checkbox" /><span class="slider"></span></label>
-          <span style="color:var(--muted);font-size:13px;margin-left:8px">Auto redirect</span>
-        </div>
-      </div>
+  <div class="container">
+    <input id="urlInput" type="text" placeholder="Enter URL..." />
+    <button id="bypassBtn">Bypass</button>
 
-      <div id="status" class="status"></div>
-      <div id="resultBox" class="result hidden"></div>
+    <label class="switch">
+      <input type="checkbox" id="autoRedirect" />
+      <span class="slider"></span>
+    </label>
+    <p>Auto Redirect</p>
 
-      <div style="margin-top:12px;display:flex;gap:10px">
-        <a class="ghost" target="_blank" rel="noopener" href="https://discord.gg/PCQvUSUEsE">Join Discord</a>
-        <a class="ghost" target="_blank" rel="noopener" href="https://discord.com/oauth2/authorize?client_id=1355400268103290910">Invite Bot</a>
-      </div>
-    </section>
+    <div class="result-box" id="resultBox">Result will appear here...</div>
 
-    <section class="card">
-      <h3>Supported</h3>
-      <ul id="supportedList" class="supported">
+    <div class="supported-box">
+      <h3>Supported Links</h3>
+      <ul>
         <li>https://work.ink</li>
-        <li>https://linkvertise.com</li>
+        <li>https://linkvertise</li>
         <li>https://link-unlocker.com</li>
         <li>https://pandadevelopment.net</li>
         <li>https://keyrblx.com</li>
         <li>https://krnl.cat</li>
       </ul>
-      <p class="small-note">v1: first three, v2: last three. Only these domains are accepted.</p>
-    </section>
+    </div>
 
-    <footer class="footer">
-      <span>Powered By Trw.lat</span>
-      <small>Vortex Bypasser</small>
-    </footer>
-  </main>
+    <div class="buttons">
+      <a href="https://discord.gg/PCQvUSUEsE" target="_blank" class="btn">Join Discord</a>
+      <a href="https://discord.com/oauth2/authorize?client_id=1355400268103290910" target="_blank" class="btn">Invite Bot</a>
+    </div>
 
-<script>
-/*
-Full client-only script for index.html
-- Poll interval: 500 ms
-- Max poll attempts: 120 (60 seconds)
-- Shows only {"result": "..."} in the result box for v1 or v2 final results.
-- Does NOT display the initial 'started' payload containing ThreadID.
-- IMPORTANT: TRW_API_KEY is client-visible if set here. If trw.lat blocks CORS or the x-api-key header, requests will fail.
-*/
+    <p class="footer">Powered by Trw.lat</p>
+  </div>
 
-///////////////////// CONFIG /////////////////////
-const TRW_API_KEY = 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45'; // <-- PUBLIC if included here
-const RECAPTCHA_SITE_KEY = ''; // optional: your reCAPTCHA v3 site key (leave empty to skip)
-const POLL_INTERVAL = 500; // ms (0.5s)
-const MAX_POLL_ATTEMPTS = 120; // 120 * 0.5s = 60 seconds
-//////////////////////////////////////////////////
+  <script>
+    const API_KEY = "e256fa8b-7df7-4264-8bbd-2d142e2d0a45";
+    const resultBox = document.getElementById("resultBox");
+    const bypassBtn = document.getElementById("bypassBtn");
+    const autoRedirectToggle = document.getElementById("autoRedirect");
 
-const ALLOWED_V1 = ['work.ink','linkvertise.com','link-unlocker.com'];
-const ALLOWED_V2 = ['pandadevelopment.net','keyrblx.com','krnl.cat'];
+    const generalAPIs = ["work.ink", "linkvertise", "link-unlocker.com"];
+    const v2APIs = ["pandadevelopment.net", "keyrblx.com", "krnl.cat"];
 
-const urlInput = document.getElementById('urlInput');
-const bypassBtn = document.getElementById('bypassBtn');
-const statusEl = document.getElementById('status');
-const resultBox = document.getElementById('resultBox');
-const autoRedirect = document.getElementById('autoRedirect');
-
-let grecaptchaReady = false;
-if (RECAPTCHA_SITE_KEY) {
-  const s = document.createElement('script');
-  s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(RECAPTCHA_SITE_KEY)}`;
-  s.onload = () => { grecaptchaReady = true; };
-  s.onerror = () => { console.warn('Failed to load grecaptcha'); };
-  document.head.appendChild(s);
-}
-
-function setStatus(msg, cls='') {
-  statusEl.textContent = msg;
-  statusEl.className = 'status' + (cls ? ' ' + cls : '');
-}
-
-function showResultObject(obj) {
-  // Only show the "result" key in the box as a small JSON object.
-  resultBox.classList.remove('hidden');
-  let val = '';
-  if (obj && typeof obj === 'object') {
-    if (obj.result !== undefined) val = obj.result;
-    else if (obj.body && obj.body.result !== undefined) val = obj.body.result;
-    else if (obj.resultText !== undefined) val = obj.resultText;
-    else { // fallback: show minimal stringified final object
-      try { resultBox.textContent = JSON.stringify(obj, null, 2); return; } catch { resultBox.textContent = String(obj); return; }
-    }
-  } else {
-    val = String(obj);
-  }
-  // show as JSON with only the result property
-  try {
-    resultBox.textContent = JSON.stringify({ result: val }, null, 2);
-  } catch {
-    resultBox.textContent = `{"result":"${String(val)}"}`;
-  }
-}
-
-function parseHostname(input) {
-  try { return new URL(input).hostname.replace(/^www\./,'').toLowerCase(); } catch { return null; }
-}
-
-function checkAllowed(host) {
-  if (!host) return null;
-  if (ALLOWED_V1.includes(host) || ALLOWED_V1.some(d => host.endsWith('.' + d))) return 'v1';
-  if (ALLOWED_V2.includes(host) || ALLOWED_V2.some(d => host.endsWith('.' + d))) return 'v2';
-  return null;
-}
-
-async function execRecaptcha() {
-  if (!RECAPTCHA_SITE_KEY || !window.grecaptcha || !grecaptchaReady) return '';
-  try {
-    return await grecaptcha.execute(RECAPTCHA_SITE_KEY, {action: 'bypass'});
-  } catch (e) {
-    console.warn('grecaptcha execute failed', e);
-    return '';
-  }
-}
-
-async function callTrwGet(endpointUrl) {
-  // endpointUrl must be full https://trw.lat/...
-  const res = await fetch(endpointUrl, {
-    method: 'GET',
-    headers: { 'x-api-key': TRW_API_KEY, 'Accept': 'application/json' },
-    credentials: 'omit'
-  });
-  const text = await res.text();
-  try { return { ok: res.ok, status: res.status, body: JSON.parse(text) }; } catch { return { ok: res.ok, status: res.status, body: text }; }
-}
-
-let pollTimer = null;
-function startPoll(threadId) {
-  setStatus('Polling for result...', 'info');
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-    pollTimer = setInterval(async () => {
-      attempts++;
-      if (attempts >= MAX_POLL_ATTEMPTS) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-        reject(new Error(`Polling timed out after ${MAX_POLL_ATTEMPTS} attempts`));
+    async function handleBypass() {
+      const url = document.getElementById("urlInput").value.trim();
+      if (!url) {
+        resultBox.textContent = "Please enter a URL.";
         return;
       }
-      try {
-        const target = `https://trw.lat/api/v2/threadcheck?id=${encodeURIComponent(threadId)}`;
-        const resp = await callTrwGet(target);
-        if (!resp) return; // try again
-        const data = resp.body;
-        if (!data) return;
-        // Normalize status and success checks
-        const stRaw = (data.status !== undefined ? String(data.status) : '').toLowerCase();
-        const successFlag = data.success === true;
-        // Consider these as final states
-        const finishedStatuses = ['done','success','finished','complete','completed'];
-        const isFinished = successFlag || finishedStatuses.includes(stRaw);
-        if (isFinished) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-          resolve(data);
-        }
-        // otherwise continue polling
-      } catch (err) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-        reject(err);
-      }
-    }, POLL_INTERVAL);
-  });
-}
 
-bypassBtn.addEventListener('click', async () => {
-  setStatus('', '');
-  resultBox.classList.add('hidden');
-  resultBox.textContent = '';
+      let apiUrl = "";
+      let useV2 = false;
 
-  const url = urlInput.value.trim();
-  if (!url) { setStatus('Please enter a URL.', 'error'); return; }
-  const host = parseHostname(url);
-  const mode = checkAllowed(host);
-  if (!mode) { setStatus('This URL is not supported. See supported list.', 'error'); return; }
-
-  bypassBtn.disabled = true;
-  setStatus('Preparing reCAPTCHA...', 'info');
-
-  const token = await execRecaptcha(); // may be ''
-  setStatus('Calling TRW API...', 'info');
-
-  try {
-    const target = mode === 'v1'
-      ? `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}${token?`&recaptchaToken=${encodeURIComponent(token)}`:''}`
-      : `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}${token?`&recaptchaToken=${encodeURIComponent(token)}`:''}`;
-
-    const resp = await callTrwGet(target);
-    if (!resp) { setStatus('No response from TRW API.', 'error'); bypassBtn.disabled=false; return; }
-
-    // v1 immediate result
-    if (resp.body && resp.body.result !== undefined && resp.body.success !== undefined) {
-      setStatus('Done (v1).', 'success');
-      showResultObject(resp.body); // shows only the "result"
-      if (autoRedirect.checked && typeof resp.body.result === 'string') {
-        try { window.location.href = resp.body.result; return; } catch(e) {}
-      }
-      bypassBtn.disabled = false;
-      return;
-    }
-
-    // v2 started: don't display ThreadID; poll for final
-    if (resp.body && (resp.body.ThreadID || resp.body.threadID || resp.body.task_id)) {
-      const threadId = resp.body.ThreadID || resp.body.threadID || resp.body.task_id;
-      setStatus('Task started — polling for completion...', 'info');
-      try {
-        const final = await startPoll(threadId);
-        setStatus('Done (v2).', 'success');
-        showResultObject(final); // shows {"result": "..."} if present
-        if (autoRedirect.checked && final && final.result && typeof final.result === 'string') {
-          try { window.location.href = final.result; return; } catch(e) {}
-        }
-      } catch (pollErr) {
-        console.error('Polling error', pollErr);
-        setStatus('Polling failed: ' + (pollErr.message || String(pollErr)), 'error');
-      } finally {
-        bypassBtn.disabled = false;
-      }
-      return;
-    }
-
-    // Unexpected shape: try to display any 'result' or minimal fallback
-    if (resp.body && resp.body.result !== undefined) {
-      setStatus('Result available.', 'success');
-      showResultObject(resp.body);
-    } else {
-      setStatus('Response received (no explicit result).', 'info');
-      if (typeof resp.body === 'string') {
-        showResultObject({ resultText: resp.body });
+      if (generalAPIs.some(d => url.includes(d))) {
+        apiUrl = `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`;
+      } else if (v2APIs.some(d => url.includes(d))) {
+        apiUrl = `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
+        useV2 = true;
       } else {
-        showResultObject(resp.body || {});
+        resultBox.textContent = "Unsupported URL.";
+        return;
+      }
+
+      resultBox.textContent = "Processing...";
+
+      try {
+        const res = await fetch(apiUrl, { headers: { "x-api-key": API_KEY } });
+        const data = await res.json();
+
+        if (useV2 && data.ThreadID) {
+          resultBox.textContent = "Task started — polling for completion...";
+          await pollThread(data.ThreadID);
+        } else if (data.result) {
+          resultBox.textContent = data.result;
+          if (autoRedirectToggle.checked) window.location.href = data.result;
+        } else {
+          resultBox.textContent = "Unexpected response.";
+        }
+      } catch (err) {
+        resultBox.textContent = "Error: " + err.message;
       }
     }
 
-  } catch (err) {
-    console.error('Error:', err);
-    if (err && err.message && err.message.includes('CORS')) {
-      setStatus('CORS error: the trw.lat API blocked the request. Use a server-side proxy or enable CORS on the API.', 'error');
-    } else {
-      setStatus('Error: ' + (err.message || String(err)), 'error');
+    async function pollThread(threadId) {
+      const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${threadId}`;
+      let attempts = 0;
+      const maxAttempts = 120;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          const res = await fetch(pollUrl, { headers: { "x-api-key": API_KEY } });
+          const data = await res.json();
+
+          if (data.status === "Done" && data.result) {
+            resultBox.textContent = data.result;
+            if (autoRedirectToggle.checked) window.location.href = data.result;
+            return;
+          }
+        } catch (err) {
+          resultBox.textContent = "Polling error: " + err.message;
+          return;
+        }
+
+        await new Promise(r => setTimeout(r, 500)); // 0.5s delay
+      }
+
+      resultBox.textContent = "Timed out after 60 seconds — no result received.";
     }
-    bypassBtn.disabled = false;
-  }
-});
-</script>
+
+    bypassBtn.addEventListener("click", handleBypass);
+  </script>
 </body>
 </html>
