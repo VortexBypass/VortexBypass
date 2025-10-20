@@ -1,5 +1,5 @@
 // api/threadcheck.js
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
+// Uses global fetch (Node 18+) — no node-fetch dependency required.
 const TRW_API_KEY = process.env.TRW_API_KEY || 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45';
 
 module.exports = async (req, res) => {
