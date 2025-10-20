@@ -8,12 +8,15 @@
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
-  <h1>🌀 Vortex Bypass</h1>
+  <h1>🌪️ Vortex Bypasser</h1>
 
   <div class="container">
     <input id="urlInput" type="text" placeholder="Enter URL..." />
 
-    <button id="bypassBtn">Bypass</button>
+    <button id="bypassBtn">
+      <span class="btn-text">Bypass</span>
+      <span class="timer" id="timer">0.0s</span>
+    </button>
 
     <div class="toggle-container">
       <label class="switch">
@@ -46,14 +49,34 @@
   </div>
 
   <script>
-    // API key is now handled via Vercel environment variable
-    const API_KEY = process.env.VORTEX_API_KEY;
+    // API key will be handled via environment variables
+    const API_KEY = "<?= process.env.VORTEX_API_KEY ?>";
     const resultBox = document.getElementById("resultBox");
     const bypassBtn = document.getElementById("bypassBtn");
+    const btnText = document.querySelector('.btn-text');
+    const timerElement = document.getElementById('timer');
     const autoRedirectToggle = document.getElementById("autoRedirect");
+
+    let timerInterval;
+    let startTime;
 
     const generalAPIs = ["work.ink", "linkvertise", "link-unlocker.com"];
     const v2APIs = ["pandadevelopment.net", "keyrblx.com", "krnl.cat"];
+
+    function startTimer() {
+      startTime = Date.now();
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        timerElement.textContent = `${elapsed.toFixed(1)}s`;
+      }, 100);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      const finalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      timerElement.textContent = `${finalTime}s`;
+    }
 
     async function handleBypass() {
       const url = document.getElementById("urlInput").value.trim();
@@ -75,7 +98,11 @@
         return;
       }
 
+      // Start timer and update UI
+      startTimer();
       resultBox.textContent = "Processing...";
+      bypassBtn.disabled = true;
+      btnText.textContent = "Bypassing";
 
       try {
         const res = await fetch(apiUrl, { headers: { "x-api-key": API_KEY } });
@@ -85,13 +112,19 @@
           resultBox.textContent = "Task started — polling for completion...";
           await pollThread(data.ThreadID);
         } else if (data.result) {
+          stopTimer();
           resultBox.textContent = data.result;
           if (autoRedirectToggle.checked) window.location.href = data.result;
         } else {
+          stopTimer();
           resultBox.textContent = "Unexpected response.";
         }
       } catch (err) {
+        stopTimer();
         resultBox.textContent = "Error: " + err.message;
+      } finally {
+        bypassBtn.disabled = false;
+        btnText.textContent = "Bypass";
       }
     }
 
@@ -107,11 +140,13 @@
           const data = await res.json();
 
           if (data.status === "Done" && data.result) {
+            stopTimer();
             resultBox.textContent = data.result;
             if (autoRedirectToggle.checked) window.location.href = data.result;
             return;
           }
         } catch (err) {
+          stopTimer();
           resultBox.textContent = "Polling error: " + err.message;
           return;
         }
@@ -119,6 +154,7 @@
         await new Promise(r => setTimeout(r, 500));
       }
 
+      stopTimer();
       resultBox.textContent = "Timed out after 60 seconds — no result received.";
     }
 
