@@ -1,5 +1,4 @@
 /* styles.css - Modern Enhanced with Floating Animations */
-
 * {
   box-sizing: border-box;
   margin: 0;
@@ -134,7 +133,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
+  background:
     linear-gradient(90deg, rgba(138, 180, 248, 0.1) 1px, transparent 1px),
     linear-gradient(180deg, rgba(138, 180, 248, 0.1) 1px, transparent 1px);
   background-size: 50px 50px;
