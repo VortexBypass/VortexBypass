@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vortex Bypasser</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+  <h1>🌪️ Vortex Bypasser</h1>
+
+  <div class="container">
+    <input id="urlInput" type="text" placeholder="Enter URL..." />
+    <button id="bypassBtn">Bypass</button>
+
+    <div class="toggle-container">
+      <label class="switch">
+        <input type="checkbox" id="autoRedirect" />
+        <span class="slider"></span>
+      </label>
+      <p>Auto Redirect</p>
+    </div>
+
+    <div class="result-box" id="resultBox">Result will appear here...</div>
+
+    <div class="supported-box">
+      <h3>Supported Links</h3>
+      <ul>
+        <li>https://work.ink</li>
+        <li>https://linkvertise</li>
+        <li>https://link-unlocker.com</li>
+        <li>https://pandadevelopment.net</li>
+        <li>https://keyrblx.com</li>
+        <li>https://krnl.cat</li>
+      </ul>
+    </div>
+
+    <div class="buttons">
+      <a href="https://discord.gg/PCQvUSUEsE" target="_blank" class="btn">Join Discord</a>
+      <a href="https://discord.com/oauth2/authorize?client_id=1355400268103290910" target="_blank" class="btn">Invite Bot</a>
+    </div>
+
+    <p class="footer">Powered by Trw.lat</p>
+  </div>
+
+  <script>
+    const API_KEY = "e256fa8b-7df7-4264-8bbd-2d142e2d0a45";
+    const resultBox = document.getElementById("resultBox");
+    const bypassBtn = document.getElementById("bypassBtn");
+    const autoRedirectToggle = document.getElementById("autoRedirect");
+
+    const generalAPIs = ["work.ink", "linkvertise", "link-unlocker.com"];
+    const v2APIs = ["pandadevelopment.net", "keyrblx.com", "krnl.cat"];
+
+    async function handleBypass() {
+      const url = document.getElementById("urlInput").value.trim();
+      if (!url) {
+        resultBox.textContent = "Please enter a URL.";
+        return;
+      }
+
+      let apiUrl = "";
+      let useV2 = false;
+
+      if (generalAPIs.some(d => url.includes(d))) {
+        apiUrl = `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`;
+      } else if (v2APIs.some(d => url.includes(d))) {
+        apiUrl = `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
+        useV2 = true;
+      } else {
+        resultBox.textContent = "Unsupported URL.";
+        return;
+      }
+
+      resultBox.textContent = "Processing...";
+
+      try {
+        const res = await fetch(apiUrl, { headers: { "x-api-key": API_KEY } });
+        const data = await res.json();
+
+        if (useV2 && data.ThreadID) {
+          resultBox.textContent = "Task started — polling for completion...";
+          await pollThread(data.ThreadID);
+        } else if (data.result) {
+          resultBox.textContent = data.result;
+          if (autoRedirectToggle.checked) window.location.href = data.result;
+        } else {
+          resultBox.textContent = "Unexpected response.";
+        }
+      } catch (err) {
+        resultBox.textContent = "Error: " + err.message;
+      }
+    }
+
+    async function pollThread(threadId) {
+      const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${threadId}`;
+      let attempts = 0;
+      const maxAttempts = 120;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          const res = await fetch(pollUrl, { headers: { "x-api-key": API_KEY } });
+          const data = await res.json();
+
+          if (data.status === "Done" && data.result) {
+            resultBox.textContent = data.result;
+            if (autoRedirectToggle.checked) window.location.href = data.result;
+            return;
+          }
+        } catch (err) {
+          resultBox.textContent = "Polling error: " + err.message;
+          return;
+        }
+
+        await new Promise(r => setTimeout(r, 500)); // 0.5s delay
+      }
+
+      resultBox.textContent = "Timed out after 60 seconds — no result received.";
+    }
+
+    bypassBtn.addEventListener("click", handleBypass);
+  </script>
+</body>
+</html>
