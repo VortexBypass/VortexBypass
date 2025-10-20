@@ -32,6 +32,7 @@
     .slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
     .switch input:checked + .slider{background:linear-gradient(90deg,var(--accent),#60a5fa)}
     .switch input:checked + .slider:before{transform:translateX(18px)}
+    .small-note{font-size:12px;color:var(--muted);margin-top:8px}
   </style>
 </head>
 <body>
@@ -71,7 +72,7 @@
         <li>https://keyrblx.com</li>
         <li>https://krnl.cat</li>
       </ul>
-      <p style="color:var(--muted);font-size:12px;margin-top:8px">v1: first three, v2: last three. Only these domains are accepted.</p>
+      <p class="small-note">v1: first three, v2: last three. Only these domains are accepted.</p>
     </section>
 
     <footer class="footer">
@@ -82,18 +83,20 @@
 
 <script>
 /*
-Client-only Vortex Bypasser
-- Directly calls trw.lat endpoints from browser (no proxy).
-- Replace TRW_API_KEY with your key (NOTE: this is public if included here).
-- If trw.lat doesn't allow CORS or blocking x-api-key header, requests will fail with CORS errors.
-- Supports reCAPTCHA v3 (optional): set RECAPTCHA_SITE_KEY to enable grecaptcha execute.
+Full client-only script for index.html
+- Poll interval: 500 ms
+- Max poll attempts: 120 (60 seconds)
+- Shows only {"result": "..."} in the result box for v1 or v2 final results.
+- Does NOT display the initial 'started' payload containing ThreadID.
+- IMPORTANT: TRW_API_KEY is client-visible if set here. If trw.lat blocks CORS or the x-api-key header, requests will fail.
 */
 
-///////////////////// CONFIG - EDIT THESE (client-visible!) /////////////////////
-const TRW_API_KEY = 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45'; // <-- PUBLIC if you put it here
-const RECAPTCHA_SITE_KEY = ''; // <-- optional: put your reCAPTCHA site key here (v3/invisible)
-const POLL_INTERVAL = 500; // ms for v2 thread polling
-///////////////////////////////////////////////////////////////////////////////
+///////////////////// CONFIG /////////////////////
+const TRW_API_KEY = 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45'; // <-- PUBLIC if included here
+const RECAPTCHA_SITE_KEY = ''; // optional: your reCAPTCHA v3 site key (leave empty to skip)
+const POLL_INTERVAL = 500; // ms (0.5s)
+const MAX_POLL_ATTEMPTS = 120; // 120 * 0.5s = 60 seconds
+//////////////////////////////////////////////////
 
 const ALLOWED_V1 = ['work.ink','linkvertise.com','link-unlocker.com'];
 const ALLOWED_V2 = ['pandadevelopment.net','keyrblx.com','krnl.cat'];
@@ -108,7 +111,7 @@ let grecaptchaReady = false;
 if (RECAPTCHA_SITE_KEY) {
   const s = document.createElement('script');
   s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(RECAPTCHA_SITE_KEY)}`;
-  s.onload = () => { grecaptchaReady = true; console.log('grecaptcha loaded'); };
+  s.onload = () => { grecaptchaReady = true; };
   s.onerror = () => { console.warn('Failed to load grecaptcha'); };
   document.head.appendChild(s);
 }
@@ -118,9 +121,26 @@ function setStatus(msg, cls='') {
   statusEl.className = 'status' + (cls ? ' ' + cls : '');
 }
 
-function showResult(obj) {
+function showResultObject(obj) {
+  // Only show the "result" key in the box as a small JSON object.
   resultBox.classList.remove('hidden');
-  try { resultBox.textContent = JSON.stringify(obj, null, 2); } catch { resultBox.textContent = String(obj); }
+  let val = '';
+  if (obj && typeof obj === 'object') {
+    if (obj.result !== undefined) val = obj.result;
+    else if (obj.body && obj.body.result !== undefined) val = obj.body.result;
+    else if (obj.resultText !== undefined) val = obj.resultText;
+    else { // fallback: show minimal stringified final object
+      try { resultBox.textContent = JSON.stringify(obj, null, 2); return; } catch { resultBox.textContent = String(obj); return; }
+    }
+  } else {
+    val = String(obj);
+  }
+  // show as JSON with only the result property
+  try {
+    resultBox.textContent = JSON.stringify({ result: val }, null, 2);
+  } catch {
+    resultBox.textContent = `{"result":"${String(val)}"}`;
+  }
 }
 
 function parseHostname(input) {
@@ -146,7 +166,6 @@ async function execRecaptcha() {
 
 async function callTrwGet(endpointUrl) {
   // endpointUrl must be full https://trw.lat/...
-  // Use fetch with x-api-key header. CORS must allow this!
   const res = await fetch(endpointUrl, {
     method: 'GET',
     headers: { 'x-api-key': TRW_API_KEY, 'Accept': 'application/json' },
@@ -158,20 +177,35 @@ async function callTrwGet(endpointUrl) {
 
 let pollTimer = null;
 function startPoll(threadId) {
+  setStatus('Polling for result...', 'info');
   return new Promise((resolve, reject) => {
+    let attempts = 0;
     pollTimer = setInterval(async () => {
+      attempts++;
+      if (attempts >= MAX_POLL_ATTEMPTS) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        reject(new Error(`Polling timed out after ${MAX_POLL_ATTEMPTS} attempts`));
+        return;
+      }
       try {
         const target = `https://trw.lat/api/v2/threadcheck?id=${encodeURIComponent(threadId)}`;
         const resp = await callTrwGet(target);
-        if (!resp) return;
+        if (!resp) return; // try again
         const data = resp.body;
         if (!data) return;
-        const st = (data.status || '').toLowerCase();
-        if (st === 'done') {
+        // Normalize status and success checks
+        const stRaw = (data.status !== undefined ? String(data.status) : '').toLowerCase();
+        const successFlag = data.success === true;
+        // Consider these as final states
+        const finishedStatuses = ['done','success','finished','complete','completed'];
+        const isFinished = successFlag || finishedStatuses.includes(stRaw);
+        if (isFinished) {
           clearInterval(pollTimer);
           pollTimer = null;
           resolve(data);
         }
+        // otherwise continue polling
       } catch (err) {
         clearInterval(pollTimer);
         pollTimer = null;
@@ -206,31 +240,50 @@ bypassBtn.addEventListener('click', async () => {
     const resp = await callTrwGet(target);
     if (!resp) { setStatus('No response from TRW API.', 'error'); bypassBtn.disabled=false; return; }
 
-    // Show raw response
-    showResult(resp);
-
-    // If v1 style: { result, success }
-    if (resp.body && resp.body.result && (resp.body.success !== undefined)) {
+    // v1 immediate result
+    if (resp.body && resp.body.result !== undefined && resp.body.success !== undefined) {
       setStatus('Done (v1).', 'success');
+      showResultObject(resp.body); // shows only the "result"
       if (autoRedirect.checked && typeof resp.body.result === 'string') {
         try { window.location.href = resp.body.result; return; } catch(e) {}
       }
+      bypassBtn.disabled = false;
+      return;
     }
-    // If v2 started: { status: "started", ThreadID, next }
-    else if (resp.body && (resp.body.ThreadID || resp.body.threadID || resp.body.task_id)) {
+
+    // v2 started: don't display ThreadID; poll for final
+    if (resp.body && (resp.body.ThreadID || resp.body.threadID || resp.body.task_id)) {
       const threadId = resp.body.ThreadID || resp.body.threadID || resp.body.task_id;
       setStatus('Task started — polling for completion...', 'info');
-      const final = await startPoll(threadId);
-      if (final) {
+      try {
+        const final = await startPoll(threadId);
         setStatus('Done (v2).', 'success');
-        showResult(final);
-        if (autoRedirect.checked && final.result && typeof final.result === 'string') {
+        showResultObject(final); // shows {"result": "..."} if present
+        if (autoRedirect.checked && final && final.result && typeof final.result === 'string') {
           try { window.location.href = final.result; return; } catch(e) {}
         }
+      } catch (pollErr) {
+        console.error('Polling error', pollErr);
+        setStatus('Polling failed: ' + (pollErr.message || String(pollErr)), 'error');
+      } finally {
+        bypassBtn.disabled = false;
       }
-    } else {
-      setStatus('Response received (unknown shape).', 'info');
+      return;
     }
+
+    // Unexpected shape: try to display any 'result' or minimal fallback
+    if (resp.body && resp.body.result !== undefined) {
+      setStatus('Result available.', 'success');
+      showResultObject(resp.body);
+    } else {
+      setStatus('Response received (no explicit result).', 'info');
+      if (typeof resp.body === 'string') {
+        showResultObject({ resultText: resp.body });
+      } else {
+        showResultObject(resp.body || {});
+      }
+    }
+
   } catch (err) {
     console.error('Error:', err);
     if (err && err.message && err.message.includes('CORS')) {
@@ -238,7 +291,6 @@ bypassBtn.addEventListener('click', async () => {
     } else {
       setStatus('Error: ' + (err.message || String(err)), 'error');
     }
-  } finally {
     bypassBtn.disabled = false;
   }
 });
