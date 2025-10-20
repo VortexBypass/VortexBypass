@@ -1,142 +1,58 @@
-// api/proxy.js
-// Uses global fetch (Node 18+) — no node-fetch dependency required.
+// api/proxy.j
+// No external dependencies — uses Node's built-in fetch.
 
-const TRW_API_KEY = process.env.TRW_API_KEY || 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45';
-const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET || '';
-const RECAPTCHA_MIN_SCORE = parseFloat(process.env.RECAPTCHA_MIN_SCORE || '0.5');
-const ALLOW_SUBDOMAINS = (String(process.env.ALLOW_SUBDOMAINS || 'true').toLowerCase() === 'true');
+const TRW_API_KEY = 'e256fa8b-7df7-4264-8bbd-2d142e2d0a45';
 
-// Allowed base domains
-const ALLOWED_V1 = ['work.ink','linkvertise.com','link-unlocker.com'];
-const ALLOWED_V2 = ['pandadevelopment.net','keyrblx.com','krnl.cat'];
+// Allowed sites
+const ALLOWED_V1 = ['work.ink', 'linkvertise.com', 'link-unlocker.com'];
+const ALLOWED_V2 = ['pandadevelopment.net', 'keyrblx.com', 'krnl.cat'];
 
-// Optional per-domain allowed path regexes
-const ALLOWED_PATHS = {
-  // 'example.com': ['^/allowed-path/.*']
-};
-
-function getHostname(u) {
+function getHost(url) {
   try {
-    const url = new URL(u);
-    return url.hostname.replace(/^www\./,'').toLowerCase();
-  } catch (e) {
-    return null;
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
   }
 }
 
-function hostnameMatchesDomain(hostname, domain) {
-  if (!hostname || !domain) return false;
-  if (hostname === domain) return true;
-  if (ALLOW_SUBDOMAINS && hostname.endsWith('.' + domain)) return true;
-  return false;
-}
-
-function allowedModeForHostname(host, pathname) {
-  if (!host) return null;
-  for (const d of ALLOWED_V1) {
-    if (hostnameMatchesDomain(host, d)) {
-      const paths = ALLOWED_PATHS[d];
-      if (paths && paths.length) {
-        const match = paths.some(rx => new RegExp(rx).test(pathname));
-        if (!match) return null;
-      }
-      return 'v1';
-    }
-  }
-  for (const d of ALLOWED_V2) {
-    if (hostnameMatchesDomain(host, d)) {
-      const paths = ALLOWED_PATHS[d];
-      if (paths && paths.length) {
-        const match = paths.some(rx => new RegExp(rx).test(pathname));
-        if (!match) return null;
-      }
-      return 'v2';
-    }
-  }
+function getMode(host) {
+  if (ALLOWED_V1.some(d => host === d || host.endsWith('.' + d))) return 'v1';
+  if (ALLOWED_V2.some(d => host === d || host.endsWith('.' + d))) return 'v2';
   return null;
 }
 
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Use POST.' });
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET with ?url=' });
     return;
   }
 
-  let body;
-  try {
-    body = req.body && typeof req.body === 'object' ? req.body : JSON.parse(req.body);
-  } catch (e) {
-    body = {};
-  }
-  const { url, recaptchaToken } = body || {};
+  const { url } = req.query;
   if (!url) {
-    res.status(400).json({ error: 'Missing url parameter' });
+    res.status(400).json({ error: 'Missing ?url parameter' });
     return;
   }
 
-  const host = getHostname(url);
-  let pathname = '/';
-  try { pathname = new URL(url).pathname || '/'; } catch(e){}
-
-  const mode = allowedModeForHostname(host, pathname);
+  const host = getHost(url);
+  const mode = getMode(host);
   if (!mode) {
-    res.status(400).json({ error: 'URL not allowed by whitelist or path rules' });
+    res.status(400).json({ error: 'URL not allowed' });
     return;
-  }
-
-  // If RECAPTCHA_SECRET provided, require a token and verify
-  if (RECAPTCHA_SECRET) {
-    if (!recaptchaToken) {
-      res.status(400).json({ error: 'Missing recaptcha token' });
-      return;
-    }
-    try {
-      const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `secret=${encodeURIComponent(RECAPTCHA_SECRET)}&response=${encodeURIComponent(recaptchaToken)}`
-      });
-      const verifyJson = await verifyRes.json();
-      if (!verifyJson.success) {
-        res.status(403).json({ error: 'Recaptcha verification failed', details: verifyJson });
-        return;
-      }
-      if (typeof verifyJson.score === 'number' && verifyJson.score < RECAPTCHA_MIN_SCORE) {
-        res.status(403).json({ error: 'Recaptcha score too low', score: verifyJson.score });
-        return;
-      }
-      if (verifyJson.action && verifyJson.action !== 'bypass') {
-        res.status(403).json({ error: 'Recaptcha action mismatch', action: verifyJson.action });
-        return;
-      }
-    } catch (e) {
-      console.error('Recaptcha verify error', e);
-      res.status(500).json({ error: 'Recaptcha verification error' });
-      return;
-    }
-  } else {
-    console.warn('RECAPTCHA_SECRET not configured — skipping recaptcha validation.');
   }
 
   try {
-    const targetUrl = mode === 'v1'
-      ? `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`
-      : `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
+    const endpoint =
+      mode === 'v1'
+        ? `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`
+        : `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
 
-    const apiRes = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        'x-api-key': TRW_API_KEY,
-        'Accept': 'application/json'
-      }
+    const response = await fetch(endpoint, {
+      headers: { 'x-api-key': TRW_API_KEY },
     });
 
-    const text = await apiRes.text();
-    let parsed;
-    try { parsed = JSON.parse(text); } catch (e) { parsed = { raw: text }; }
-    res.status(apiRes.status).json(parsed);
+    const data = await response.json();
+    res.status(200).json(data);
   } catch (err) {
-    console.error('Proxy error', err);
     res.status(500).json({ error: 'Proxy error', details: String(err) });
   }
-};
+}
