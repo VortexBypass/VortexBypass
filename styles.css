@@ -143,6 +143,20 @@ button {
   overflow: hidden;
   z-index: 1;
   margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+button:disabled:hover {
+  transform: none !important;
+  box-shadow: 0 6px 16px rgba(138, 180, 248, 0.3) !important;
 }
 
 button::before {
@@ -161,13 +175,28 @@ button:hover::before {
   left: 100%;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.03);
   box-shadow: 0 8px 24px rgba(138, 180, 248, 0.4);
 }
 
-button:active {
+button:active:not(:disabled) {
   transform: translateY(-1px) scale(1.02);
+}
+
+.btn-text {
+  flex: 1;
+  text-align: center;
+}
+
+.timer {
+  font-size: 11px;
+  background: rgba(10, 14, 39, 0.7);
+  padding: 4px 8px;
+  border-radius: 8px;
+  min-width: 45px;
+  text-align: center;
+  font-weight: 600;
 }
 
 .result-box {
@@ -184,6 +213,10 @@ button:active {
   animation: slideIn 0.3s ease-out;
   position: relative;
   z-index: 1;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @keyframes slideIn {
