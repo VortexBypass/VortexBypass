@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vortex Bypasser</title>
 
-  <!-- If you prefer build-time injection, have your build replace %VORTEX_API_KEY% with the env var:
-       <meta name="vortex-api-key" content="%VORTEX_API_KEY%">
-       (Many static hosts allow injecting env values at build time.)
-  -->
+  <!-- Optional: build-time injection fallback -->
+  <!-- <meta name="vortex-api-key" content="%VORTEX_API_KEY%"> -->
+
   <link rel="stylesheet" href="styles.css" />
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
@@ -18,7 +17,8 @@
   <div class="container">
     <input id="urlInput" type="text" placeholder="Enter URL..." />
 
-    <button id="bypassBtn">Bypass</button>
+    <!-- small bypass button (type=button prevents accidental form submit) -->
+    <button id="bypassBtn" type="button">Bypass</button>
 
     <div class="toggle-container">
       <label class="switch">
@@ -28,7 +28,10 @@
       <p class="toggle-label">Auto Redirect</p>
     </div>
 
-    <div class="result-box" id="resultBox">Result will appear here...</div>
+    <div class="result-box" id="resultBox">
+      <div id="resultText">Result will appear here...</div>
+      <div id="timer" class="timer">00:00.000</div>
+    </div>
 
     <div class="supported-box">
       <h3>Supported Links</h3>
@@ -51,19 +54,62 @@
   </div>
 
   <script>
+    // --- Elements ---
     const resultBox = document.getElementById("resultBox");
+    const resultText = document.getElementById("resultText");
     const bypassBtn = document.getElementById("bypassBtn");
     const autoRedirectToggle = document.getElementById("autoRedirect");
+    const timerEl = document.getElementById("timer");
+    const urlInput = document.getElementById("urlInput");
 
+    // --- Supported API hosts ---
     const generalAPIs = ["work.ink", "linkvertise", "link-unlocker.com"];
     const v2APIs = ["pandadevelopment.net", "keyrblx.com", "krnl.cat"];
 
-    // Try to obtain API key securely:
-    // 1) First try a serverless endpoint /api/key which should return JSON: { "key": "<your-key>" }
-    //    (Create a small serverless function on Vercel that reads process.env.VORTEX_API_KEY and returns it.)
-    // 2) Fallback to a build-time meta tag if you inject the key during build.
+    // --- Timer utilities ---
+    let timerInterval = null;
+    let startTime = null;
+    function startTimer() {
+      stopTimer(); // ensure clean
+      startTime = performance.now();
+      timerEl.textContent = formatElapsed(0);
+      timerInterval = setInterval(() => {
+        const elapsed = performance.now() - startTime;
+        timerEl.textContent = formatElapsed(elapsed);
+      }, 16); // ~60fps for smoothness
+    }
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      startTime = null;
+    }
+    function formatElapsed(ms) {
+      const totalMs = Math.max(0, ms | 0);
+      const minutes = Math.floor(totalMs / 60000);
+      const seconds = Math.floor((totalMs % 60000) / 1000);
+      const millis = totalMs % 1000;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2,"0")}.${String(millis).padStart(3,"0")}`;
+    }
+
+    // --- UI helpers ---
+    function setStatus(text) {
+      resultText.textContent = text;
+    }
+    function setError(text) {
+      resultText.textContent = "Error: " + text;
+    }
+    function setProcessing(isProcessing) {
+      bypassBtn.disabled = isProcessing;
+      bypassBtn.style.opacity = isProcessing ? "0.85" : "1";
+      if (isProcessing) bypassBtn.textContent = "Processing...";
+      else bypassBtn.textContent = "Bypass";
+    }
+
+    // --- Get API key (tries /api/key then meta fallback) ---
     async function getApiKey() {
-      // attempt serverless endpoint
+      // Try serverless endpoint first
       try {
         const res = await fetch('/api/key', { cache: 'no-store' });
         if (res.ok) {
@@ -71,104 +117,151 @@
           if (j && j.key) return j.key;
         }
       } catch (e) {
-        // ignore and try meta fallback
+        // ignore, fallback next
+        console.warn('Failed to fetch /api/key:', e);
       }
 
-      // fallback: meta tag injected at build-time
+      // Fallback to meta tag (build-time injection)
       const meta = document.querySelector('meta[name="vortex-api-key"]');
       if (meta && meta.content) return meta.content;
 
-      // not found
-      resultBox.textContent = "API key not configured. Please set VORTEX_API_KEY in Vercel and expose it via /api/key or a build-time meta tag.";
-      throw new Error("API key not found");
+      throw new Error("API key not configured. Set VORTEX_API_KEY in Vercel and expose via /api/key or build-time meta tag.");
     }
 
+    // --- Poll thread helper with max attempts + 0.5s delay ---
+    async function pollThread(threadId, apiKey) {
+      const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${encodeURIComponent(threadId)}`;
+      let attempts = 0;
+      const maxAttempts = 120; // as requested
+      const delayMs = 500;
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          const r = await fetch(pollUrl, { headers: { "x-api-key": apiKey } });
+          if (!r.ok) {
+            // continue polling on non-2xx? decide to treat as transient (you can adjust)
+            console.warn('Polling returned non-OK:', r.status);
+          } else {
+            const data = await r.json();
+            if (data.status === "Done" && data.result) {
+              return { ok: true, result: data.result };
+            }
+            // If thread returns an error field, return it
+            if (data.status === "Error" || data.error) {
+              return { ok: false, error: data.error || 'Thread returned error' };
+            }
+          }
+        } catch (err) {
+          // network or JSON parse errors - bubble out as polling error
+          return { ok: false, error: err.message || String(err) };
+        }
+        // wait
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+      return { ok: false, error: 'Timed out waiting for thread result' };
+    }
+
+    // --- Main bypass flow ---
     async function handleBypass() {
-      const url = document.getElementById("urlInput").value.trim();
+      setProcessing(true);
+      setStatus("Validating input...");
+      timerEl.textContent = "00:00.000";
+
+      const url = urlInput.value.trim();
       if (!url) {
-        resultBox.textContent = "Please enter a URL.";
+        setError("Please enter a URL.");
+        setProcessing(false);
         return;
       }
 
       let apiUrl = "";
       let useV2 = false;
-
       if (generalAPIs.some(d => url.includes(d))) {
         apiUrl = `https://trw.lat/api/bypass?url=${encodeURIComponent(url)}`;
       } else if (v2APIs.some(d => url.includes(d))) {
         apiUrl = `https://trw.lat/api/v2/bypass?url=${encodeURIComponent(url)}`;
         useV2 = true;
       } else {
-        resultBox.textContent = "Unsupported URL.";
+        setError("Unsupported URL.");
+        setProcessing(false);
         return;
       }
 
-      resultBox.textContent = "Processing...";
+      startTimer();
 
       let API_KEY;
       try {
         API_KEY = await getApiKey();
       } catch (err) {
-        // getApiKey already set user-facing message
+        stopTimer();
+        setError(err.message || String(err));
+        setProcessing(false);
         return;
       }
 
+      setStatus("Sending request...");
       try {
         const res = await fetch(apiUrl, { headers: { "x-api-key": API_KEY } });
-        const data = await res.json();
-
-        if (useV2 && data.ThreadID) {
-          resultBox.textContent = "Task started — polling for completion...";
-          await pollThread(data.ThreadID, API_KEY);
-        } else if (data.result) {
-          resultBox.textContent = data.result;
-          if (autoRedirectToggle.checked) window.location.href = data.result;
-        } else {
-          resultBox.textContent = "Unexpected response.";
-        }
-      } catch (err) {
-        resultBox.textContent = "Error: " + err.message;
-      }
-    }
-
-    async function pollThread(threadId, apiKey) {
-      const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${threadId}`;
-      let attempts = 0;
-      const maxAttempts = 120; // as requested: 120 tries
-      const delayMs = 500;     // 0.5s between polls
-
-      while (attempts < maxAttempts) {
-        attempts++;
-        try {
-          const res = await fetch(pollUrl, { headers: { "x-api-key": apiKey } });
-          const data = await res.json();
-
-          if (data.status === "Done" && data.result) {
-            resultBox.textContent = data.result;
-            if (autoRedirectToggle.checked) window.location.href = data.result;
-            return;
-          }
-        } catch (err) {
-          resultBox.textContent = "Polling error: " + err.message;
+        if (!res.ok) {
+          const txt = await res.text().catch(()=>null);
+          stopTimer();
+          setError(`Remote API returned ${res.status}${txt ? `: ${txt}` : ''}`);
+          setProcessing(false);
           return;
         }
+        const data = await res.json();
 
-        // wait 0.5s
-        await new Promise(r => setTimeout(r, delayMs));
+        // v2 thread flow
+        if (useV2 && data.ThreadID) {
+          setStatus("Task started — polling for completion...");
+          const polled = await pollThread(data.ThreadID, API_KEY);
+          if (polled.ok) {
+            stopTimer();
+            setStatus(polled.result);
+            if (autoRedirectToggle.checked) {
+              // small delay so user sees the result and timer stop
+              setTimeout(()=> window.location.href = polled.result, 200);
+            }
+          } else {
+            stopTimer();
+            setError(polled.error || 'Polling failed');
+          }
+        } else if (data.result) {
+          stopTimer();
+          setStatus(data.result);
+          if (autoRedirectToggle.checked) {
+            setTimeout(()=> window.location.href = data.result, 200);
+          }
+        } else {
+          stopTimer();
+          setError("Unexpected response from API.");
+        }
+      } catch (err) {
+        stopTimer();
+        setError(err.message || String(err));
+      } finally {
+        setProcessing(false);
       }
-
-      resultBox.textContent = "Timed out after 60 seconds — no result received.";
     }
 
+    // Add click and Enter handlers
     bypassBtn.addEventListener("click", handleBypass);
-
-    // optional: allow Enter key to trigger bypass
-    document.getElementById('urlInput').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
+    urlInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
         e.preventDefault();
-        bypassBtn.click();
+        handleBypass();
       }
     });
+
+    // --- Helpful: expose debug function to console for quick testing ---
+    window._vb_test = {
+      startTimer, stopTimer, formatElapsed
+    };
   </script>
+
+  <!-- Vercel Analytics + Speed Insights (defer for performance) -->
+  <!-- Ensure you enabled Analytics & Speed Insights in the Vercel dashboard -->
+  <script defer src="https://cdn.vercel-insights.com/v1/script.analytics.js"></script>
+  <script defer src="https://cdn.vercel-insights.com/v1/script.debug.js"></script>
 </body>
 </html>
