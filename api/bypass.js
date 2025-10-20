@@ -1,6 +1,11 @@
-// api/bypass.js  (ESM - requires "type": "module" in package.json)
+// /api/bypass.js  (ESM - requires "type":"module" in package.json)
+// Accepts GET (/api/bypass?url=...) or POST (JSON { url: "..." })
+// Calls upstream trw.lat endpoints server-side using VORTEX_API_KEY and handles v2 polling.
+
+export const config = {}; // placeholder if you want to add runtime config later
+
 export default async function handler(req, res) {
-  // Basic CORS — lock this down in production to your site origin
+  // Basic CORS — restrict to your domain in production
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -17,19 +22,21 @@ export default async function handler(req, res) {
   const key = process.env.VORTEX_API_KEY;
   if (!key) return res.status(500).json({ ok: false, error: 'Server misconfiguration: VORTEX_API_KEY missing' });
 
-  // get url from query param (GET) or body (POST)
+  // extract target URL
   let targetUrl = null;
   try {
     if (req.method === 'GET') {
-      const q = new URL(req.url, `http://${req.headers.host}`);
-      targetUrl = q.searchParams.get('url') || null;
+      // req.url is a relative path like "/api/bypass?url=..."
+      const base = `https://${req.headers.host || 'localhost'}`;
+      const u = new URL(req.url, base);
+      targetUrl = u.searchParams.get('url') || null;
     } else {
-      // POST - parse JSON body (Edge and Node runtimes differ; use req.json() when available)
+      // POST
       if (typeof req.json === 'function') {
         const body = await req.json();
         targetUrl = body && body.url ? body.url : null;
       } else {
-        // fallback: read raw body
+        // fallback (rare)
         const text = await new Promise((resolve, reject) => {
           let data = '';
           req.on('data', chunk => data += chunk);
@@ -70,7 +77,7 @@ export default async function handler(req, res) {
   try {
     const start = Date.now();
 
-    // Upstream GET (server-side) with key
+    // Call upstream (server-side) using fetch available in Node 18+ on Vercel
     const initRes = await fetch(apiUrl, { headers: { 'x-api-key': key } });
     const initText = await initRes.text().catch(()=>null);
     let initJson = null;
@@ -80,7 +87,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ ok: false, error: `Upstream returned ${initRes.status}`, upstream: initJson || initText });
     }
 
-    // If v2 thread flow, poll server-side
+    // v2 thread flow
     if (useV2 && initJson && initJson.ThreadID) {
       const threadId = initJson.ThreadID;
       const pollUrl = `https://trw.lat/api/v2/threadcheck?id=${encodeURIComponent(threadId)}`;
@@ -104,7 +111,8 @@ export default async function handler(req, res) {
             return res.status(502).json({ ok: false, error: pj.error || 'Thread returned error', upstream: pj });
           }
         }
-        // wait before next poll
+
+        // wait
         await new Promise(r => setTimeout(r, delayMs));
       }
 
@@ -112,13 +120,13 @@ export default async function handler(req, res) {
       return res.status(504).json({ ok: false, error: 'Timed out waiting for thread result' });
     }
 
-    // immediate result path
+    // immediate result
     if (initJson && initJson.result) {
       const elapsed = Date.now() - start;
       return res.status(200).json({ ok: true, result: initJson.result, elapsedMs: elapsed });
     }
 
-    // fallback: unexpected shape
+    // fallback: upstream returned some unexpected data (text or other)
     return res.status(502).json({ ok: false, error: 'Unexpected response shape from upstream', upstream: initJson || initText });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
