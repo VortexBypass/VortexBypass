@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -14,43 +13,41 @@
   <div class="container">
     <input id="urlInput" type="text" placeholder="Enter URL..." />
 
-```
-<button id="bypassBtn">Bypass</button>
+    <button id="bypassBtn">Bypass</button>
 
-<div class="toggle-container">
-  <label class="switch">
-    <input type="checkbox" id="autoRedirect" />
-    <span class="slider"></span>
-  </label>
-  <p>Auto Redirect</p>
-</div>
+    <div class="toggle-container">
+      <label class="switch">
+        <input type="checkbox" id="autoRedirect" />
+        <span class="slider"></span>
+      </label>
+      <p>Auto Redirect</p>
+    </div>
 
-<div class="result-box" id="resultBox">Result will appear here...</div>
+    <div class="result-box" id="resultBox">Result will appear here...</div>
 
-<div class="supported-box">
-  <h3>Supported Links</h3>
-  <ul>
-    <li>https://work.ink</li>
-    <li>https://linkvertise</li>
-    <li>https://link-unlocker.com</li>
-    <li>https://pandadevelopment.net</li>
-    <li>https://keyrblx.com</li>
-    <li>https://krnl.cat</li>
-  </ul>
-</div>
+    <div class="supported-box">
+      <h3>Supported Links</h3>
+      <ul>
+        <li>https://work.ink</li>
+        <li>https://linkvertise</li>
+        <li>https://link-unlocker.com</li>
+        <li>https://pandadevelopment.net</li>
+        <li>https://keyrblx.com</li>
+        <li>https://krnl.cat</li>
+      </ul>
+    </div>
 
-<div class="buttons">
-  <a href="https://discord.gg/PCQvUSUEsE" target="_blank" class="btn">Join Discord</a>
-  <a href="https://discord.com/oauth2/authorize?client_id=1355400268103290910" target="_blank" class="btn">Invite Bot</a>
-</div>
+    <div class="buttons">
+      <a href="https://discord.gg/PCQvUSUEsE" target="_blank" class="btn">Join Discord</a>
+      <a href="https://discord.com/oauth2/authorize?client_id=1355400268103290910" target="_blank" class="btn">Invite Bot</a>
+    </div>
 
-<p class="footer">Powered by Trw.lat</p>
-```
-
+    <p class="footer">Powered by Trw.lat</p>
   </div>
 
   <script>
-    const API_KEY = "e256fa8b-7df7-4264-8bbd-2d142e2d0a45";
+    // API key is now handled via Vercel environment variable
+    const API_KEY = process.env.VORTEX_API_KEY;
     const resultBox = document.getElementById("resultBox");
     const bypassBtn = document.getElementById("bypassBtn");
     const autoRedirectToggle = document.getElementById("autoRedirect");
