@@ -1,15 +1,13 @@
 // /api/key-check.js  (ESM)
 export default function handler(req, res) {
-  // Only allow GET
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
 
-  // Basic CORS for testing — tighten in production
+  // Basic CORS (adjust for production)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   console.log('[key-check] endpoint hit');
 
