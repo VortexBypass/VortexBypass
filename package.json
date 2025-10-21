@@ -1,12 +1,9 @@
 {
-  "name": "vortexbypass",
+  "name": "vortexbypass-bun",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=20"
-  },
   "scripts": {
-    "build": "echo \"No build step\""
+    "start": "bun server.js"
   }
 }
