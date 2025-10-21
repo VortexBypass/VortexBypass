@@ -4,8 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vortex Bypasser</title>
-  <!-- styles.css served from /public/styles.css -->
+
+  <!-- Google font (fallback-safe) -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- main stylesheet -->
   <link rel="stylesheet" href="/styles.css" />
+
+  <!-- tiny safe default style to avoid completely broken UX if styles.css 404s -->
+  <style>
+    html,body{min-height:100%}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:20px;background:#0b0f24;color:#fff}
+    a{color:inherit}
+  </style>
 </head>
 <body>
   <!-- Animated Background Elements -->
@@ -23,23 +35,29 @@
     <div class="floating-particle particle-6"></div>
   </div>
 
-  <!-- Title: now side-by-side -->
+  <!-- Header: logo + inline title -->
   <header class="site-header" role="banner">
-    <h1 class="title">
-      <span class="title-main">Vortex</span>
-      <span class="title-divider"> </span>
-      <span class="title-sub">Bypasser</span>
-    </h1>
+    <div class="logo-title">
+      <img src="/images/logo.png" alt="logo" class="site-logo" id="siteLogo" />
+      <h1 class="title" aria-label="Vortex Bypasser">
+        <span class="title-main">Vortex</span>
+        <span class="title-divider"> </span>
+        <span class="title-sub">Bypasser</span>
+      </h1>
+    </div>
   </header>
 
-  <div class="container" role="main">
-    <!-- Input wrapper with animated icon and micro-interactions -->
+  <main class="container" role="main">
+    <!-- Input wrapper with icon + animated bar -->
     <div class="input-wrapper">
       <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path fill="currentColor" d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 6h4v2h-4V8zm-6 7h12v2H7v-2zm6-4h4v2h-4v-2z"/>
       </svg>
-      <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
-      <div class="input-animated-bar" aria-hidden="true"></div>
+
+      <div class="input-stack" style="flex:1">
+        <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
+        <div class="input-animated-bar" aria-hidden="true"></div>
+      </div>
     </div>
 
     <button id="bypassBtn" disabled>BYPASS</button>
@@ -75,7 +93,21 @@
     </div>
 
     <p class="footer">Powered by Trw.lat</p>
-  </div>
+
+    <!-- Optional: Before / After comparison (place two images into /public/images/before.jpg and /public/images/after.jpg)
+         If the files don't exist the block hides automatically. -->
+    <section id="compareSection" class="compare-section" aria-hidden="true">
+      <h3 class="compare-title">Design: before → after</h3>
+      <div class="compare-wrap">
+        <img id="beforeImg" class="compare-img before" src="/images/before.jpg" alt="Before design" />
+        <div class="after-wrap">
+          <img id="afterImg" class="compare-img after" src="/images/after.jpg" alt="After design" />
+          <div id="slider" class="compare-slider" aria-hidden="true"></div>
+        </div>
+      </div>
+      <p class="compare-note">Drop `before.jpg` and `after.jpg` into `/public/images/` — file names are case sensitive on many hosts.</p>
+    </section>
+  </main>
 
   <!-- Client logic: uses /api/key-check and /api/bypass (server-side) -->
   <script type="module">
@@ -84,6 +116,9 @@
     const resultText = document.getElementById("resultText");
     const timerEl = document.getElementById("timer");
     const autoRedirectToggle = document.getElementById("autoRedirect");
+    const compareSection = document.getElementById('compareSection');
+    const beforeImg = document.getElementById('beforeImg');
+    const afterImg = document.getElementById('afterImg');
 
     let timerInterval = null;
     let startTs = null;
@@ -103,7 +138,7 @@
       timerInterval = setInterval(() => {
         const elapsed = performance.now() - startTs;
         timerEl.textContent = formatElapsed(elapsed);
-      }, 100); // 10 updates per second is enough for m:ss
+      }, 100); // 10 updates/sec
     }
 
     function stopTimer() {
@@ -156,6 +191,41 @@
     (async () => {
       // initial check
       await checkKeyConfigured();
+
+      // Compare images: hide compare if images not available
+      function imgOK(imgEl) {
+        return new Promise(resolve => {
+          if (!imgEl) return resolve(false);
+          if (imgEl.complete && imgEl.naturalWidth > 1) return resolve(true);
+          imgEl.onload = () => resolve(imgEl.naturalWidth > 1);
+          imgEl.onerror = () => resolve(false);
+        });
+      }
+      const beforeOK = await imgOK(beforeImg);
+      const afterOK = await imgOK(afterImg);
+      if (beforeOK && afterOK) {
+        compareSection.setAttribute('aria-hidden','false');
+        compareSection.style.display = 'block';
+        // simple draggable slider
+        const slider = document.getElementById('slider');
+        let dragging = false;
+        const afterWrap = document.querySelector('.after-wrap');
+        function setClip(x) {
+          const rect = afterWrap.getBoundingClientRect();
+          const pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+          // width clip for after image
+          afterImg.style.clipPath = `inset(0 ${ (1 - pct) * 100 }% 0 0)`;
+          slider.style.left = `${pct * 100}%`;
+        }
+        slider.addEventListener('pointerdown', (e) => { dragging = true; slider.setPointerCapture(e.pointerId); });
+        window.addEventListener('pointerup', () => dragging = false);
+        window.addEventListener('pointermove', (e) => { if (!dragging) return; setClip(e.clientX); });
+        // initial half
+        window.addEventListener('resize', () => setClip(window.innerWidth/2));
+        setClip(window.innerWidth/2);
+      } else {
+        compareSection.style.display = 'none';
+      }
     })();
 
     async function handleBypass() {
@@ -218,16 +288,14 @@
 
     bypassBtn.addEventListener('click', handleBypass);
 
-    // small nicety: focus input on load
-    window.addEventListener('load', () => {
-      try { urlInput.focus(); } catch(e) {}
-    });
+    // focus input on load
+    window.addEventListener('load', () => { try { urlInput.focus(); } catch(e) {} });
 
     // expose for debugging
     window._vb = { checkKeyConfigured, handleBypass, startTimer, stopTimer };
   </script>
 
-  <!-- Vercel Analytics & Speed Insights (optional) -->
+  <!-- Vercel Analytics (optional) -->
   <script defer src="https://cdn.vercel-insights.com/v1/script.analytics.js"></script>
   <script defer src="https://cdn.vercel-insights.com/v1/script.debug.js"></script>
 </body>
