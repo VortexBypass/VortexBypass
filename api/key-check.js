@@ -1,16 +1,17 @@
-// /api/key-check.js  (ESM)
+// api/key-check.js (temporary debug, safe — does NOT show the key)
 export default function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
 
-  // Basic CORS (adjust for production)
+  // CORS for testing only
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-
-  console.log('[key-check] endpoint hit');
 
   const configured = !!process.env.VORTEX_API_KEY;
-  return res.status(200).json({ ok: true, configured });
+  // VERCEL_ENV can be "production", "preview", or "development" (when running on Vercel)
+  const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown';
+
+  // Also show which build/deployment stage the function thinks it's in
+  return res.status(200).json({ ok: true, configured, env });
 }
