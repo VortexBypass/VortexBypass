@@ -77,7 +77,7 @@ export default async function handler(req, res) {
   try {
     const start = Date.now();
 
-    // Call upstream (server-side) using fetch available in Node 18+ on Vercel
+    // Call upstream (server-side) using fetch available in Node 18+/20 on Vercel
     const initRes = await fetch(apiUrl, { headers: { 'x-api-key': key } });
     const initText = await initRes.text().catch(()=>null);
     let initJson = null;
