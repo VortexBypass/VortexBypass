@@ -1,8 +1,7 @@
 {
   "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node@2.15.0" },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "styles.css", "use": "@vercel/static" }
+    { "src": "api/**/*.js", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" }
   ],
   "functions": {
     "api/**/*.js": {
