@@ -20,9 +20,8 @@
   </style>
 </head>
 <body>
-  <!-- Animated Background Elements -->
+  <!-- Animated Background Elements (grid removed) -->
   <div class="animated-background" aria-hidden="true">
-    <div class="background-grid"></div>
     <div class="floating-orb orb-1"></div>
     <div class="floating-orb orb-2"></div>
     <div class="floating-orb orb-3"></div>
@@ -35,11 +34,12 @@
     <div class="floating-particle particle-6"></div>
   </div>
 
-  <!-- Header: logo + inline title -->
+  <!-- Header: logo + inline title + emoji -->
   <header class="site-header" role="banner">
     <div class="logo-title">
       <img src="/images/logo.png" alt="logo" class="site-logo" id="siteLogo" />
       <h1 class="title" aria-label="Vortex Bypasser">
+        <span class="title-emoji" aria-hidden="true">🌪️</span>
         <span class="title-main">Vortex</span>
         <span class="title-divider"> </span>
         <span class="title-sub">Bypasser</span>
@@ -48,12 +48,8 @@
   </header>
 
   <main class="container" role="main">
-    <!-- Input wrapper with icon + animated bar -->
+    <!-- Input wrapper: ICON REMOVED per request (circled element gone) -->
     <div class="input-wrapper">
-      <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path fill="currentColor" d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 6h4v2h-4V8zm-6 7h12v2H7v-2zm6-4h4v2h-4v-2z"/>
-      </svg>
-
       <div class="input-stack" style="flex:1">
         <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
         <div class="input-animated-bar" aria-hidden="true"></div>
@@ -94,8 +90,7 @@
 
     <p class="footer">Powered by Trw.lat</p>
 
-    <!-- Optional: Before / After comparison (place two images into /public/images/before.jpg and /public/images/after.jpg)
-         If the files don't exist the block hides automatically. -->
+    <!-- Optional: Before / After comparison (keeps same functionality) -->
     <section id="compareSection" class="compare-section" aria-hidden="true">
       <h3 class="compare-title">Design: before → after</h3>
       <div class="compare-wrap">
@@ -167,6 +162,8 @@
       try {
         const res = await fetch('/api/key-check', { method: 'GET', cache: 'no-store' });
         if (!res.ok) {
+          // keep the visible error message but make it a bit more actionable in the console
+          console.warn('key-check returned', res.status);
           showError(`Key-check endpoint returned ${res.status}`);
           bypassBtn.disabled = true;
           return false;
@@ -213,14 +210,12 @@
         function setClip(x) {
           const rect = afterWrap.getBoundingClientRect();
           const pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
-          // width clip for after image
           afterImg.style.clipPath = `inset(0 ${ (1 - pct) * 100 }% 0 0)`;
           slider.style.left = `${pct * 100}%`;
         }
         slider.addEventListener('pointerdown', (e) => { dragging = true; slider.setPointerCapture(e.pointerId); });
         window.addEventListener('pointerup', () => dragging = false);
         window.addEventListener('pointermove', (e) => { if (!dragging) return; setClip(e.clientX); });
-        // initial half
         window.addEventListener('resize', () => setClip(window.innerWidth/2));
         setClip(window.innerWidth/2);
       } else {
