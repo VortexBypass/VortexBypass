@@ -1,26 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vortex Bypasser</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VortexBypass</title>
 
-  <!-- Google font (fallback-safe) -->
+  <!-- font -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- main stylesheet -->
   <link rel="stylesheet" href="/styles.css" />
 
-  <!-- tiny safe default style to avoid completely broken UX if styles.css 404s -->
+  <!-- minimal fallback to avoid totally broken page if styles fail -->
   <style>
     html,body{min-height:100%}
-    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:20px;background:#0b0f24;color:#fff}
-    a{color:inherit}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:18px;background:#0b0f24;color:#fff}
   </style>
 </head>
 <body>
-  <!-- Animated Background Elements (grid removed) -->
+  <!-- background orbs/particles (grid removed) -->
   <div class="animated-background" aria-hidden="true">
     <div class="floating-orb orb-1"></div>
     <div class="floating-orb orb-2"></div>
@@ -34,21 +33,13 @@
     <div class="floating-particle particle-6"></div>
   </div>
 
-  <!-- Header: logo + inline title + emoji -->
+  <!-- Header: TITLE only (logo removed) -->
   <header class="site-header" role="banner">
-    <div class="logo-title">
-      <img src="/images/logo.png" alt="logo" class="site-logo" id="siteLogo" />
-      <h1 class="title" aria-label="Vortex Bypasser">
-        <span class="title-emoji" aria-hidden="true">🌪️</span>
-        <span class="title-main">Vortex</span>
-        <span class="title-divider"> </span>
-        <span class="title-sub">Bypasser</span>
-      </h1>
-    </div>
+    <h1 class="site-title" aria-label="VortexBypass">🌪️ <span class="site-title-text">VortexBypass</span></h1>
   </header>
 
   <main class="container" role="main">
-    <!-- Input wrapper: ICON REMOVED per request (circled element gone) -->
+    <!-- input wrapper (icon removed) -->
     <div class="input-wrapper">
       <div class="input-stack" style="flex:1">
         <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
@@ -56,12 +47,18 @@
       </div>
     </div>
 
-    <button id="bypassBtn" disabled>BYPASS</button>
+    <!-- BYPASS button moved down and z-indexed -->
+    <div class="button-row">
+      <button id="bypassBtn" disabled>BYPASS</button>
+    </div>
 
+    <!-- Auto Redirect newly styled toggle -->
     <div class="toggle-container" aria-hidden="false">
-      <label class="switch" title="Auto Redirect">
+      <label class="toggle-pill" title="Auto Redirect">
         <input type="checkbox" id="autoRedirect" />
-        <span class="slider"></span>
+        <span class="toggle-track" aria-hidden="true">
+          <span class="toggle-thumb"></span>
+        </span>
       </label>
       <p class="toggle-label">Auto Redirect</p>
     </div>
@@ -89,36 +86,19 @@
     </div>
 
     <p class="footer">Powered by Trw.lat</p>
-
-    <!-- Optional: Before / After comparison (keeps same functionality) -->
-    <section id="compareSection" class="compare-section" aria-hidden="true">
-      <h3 class="compare-title">Design: before → after</h3>
-      <div class="compare-wrap">
-        <img id="beforeImg" class="compare-img before" src="/images/before.jpg" alt="Before design" />
-        <div class="after-wrap">
-          <img id="afterImg" class="compare-img after" src="/images/after.jpg" alt="After design" />
-          <div id="slider" class="compare-slider" aria-hidden="true"></div>
-        </div>
-      </div>
-      <p class="compare-note">Drop `before.jpg` and `after.jpg` into `/public/images/` — file names are case sensitive on many hosts.</p>
-    </section>
   </main>
 
-  <!-- Client logic: uses /api/key-check and /api/bypass (server-side) -->
   <script type="module">
     const urlInput = document.getElementById("urlInput");
     const bypassBtn = document.getElementById("bypassBtn");
     const resultText = document.getElementById("resultText");
     const timerEl = document.getElementById("timer");
     const autoRedirectToggle = document.getElementById("autoRedirect");
-    const compareSection = document.getElementById('compareSection');
-    const beforeImg = document.getElementById('beforeImg');
-    const afterImg = document.getElementById('afterImg');
 
     let timerInterval = null;
     let startTs = null;
 
-    // Format to m:ss (example: 0:05, 1:23). Minutes do NOT have forced leading zeros.
+    // Format to m:ss (minutes without leading zero)
     function formatElapsed(ms) {
       const totalMs = Math.max(0, Math.floor(ms));
       const minutes = Math.floor(totalMs / 60000);
@@ -133,7 +113,7 @@
       timerInterval = setInterval(() => {
         const elapsed = performance.now() - startTs;
         timerEl.textContent = formatElapsed(elapsed);
-      }, 100); // 10 updates/sec
+      }, 100);
     }
 
     function stopTimer() {
@@ -161,78 +141,54 @@
     async function checkKeyConfigured() {
       try {
         const res = await fetch('/api/key-check', { method: 'GET', cache: 'no-store' });
+
+        // If endpoint missing (404) enable UI gracefully and avoid showing red scary error.
+        if (res.status === 404) {
+          console.warn('key-check returned 404 — endpoint not deployed or wrong path.');
+          // Friendly neutral notice (not red) so users aren't alarmed
+          resultText.style.color = "#c0dfff";
+          resultText.textContent = "Key-check not found — running in offline mode";
+          bypassBtn.disabled = false; // allow testing while server endpoint absent
+          return false;
+        }
+
         if (!res.ok) {
-          // keep the visible error message but make it a bit more actionable in the console
-          console.warn('key-check returned', res.status);
           showError(`Key-check endpoint returned ${res.status}`);
           bypassBtn.disabled = true;
           return false;
         }
+
         const data = await res.json();
         if (data && data.ok && data.configured) {
           showInfo("Ready — enter a url");
           bypassBtn.disabled = false;
           return true;
         } else {
-          showError("VORTEX_API_KEY is not configured on the server. Set it in Vercel Project → Settings → Environment Variables.");
+          showError("VORTEX_API_KEY is not configured on the server. Set it in your environment.");
           bypassBtn.disabled = true;
           return false;
         }
       } catch (err) {
-        showError("Cannot reach key-check endpoint: " + (err.message || err));
-        bypassBtn.disabled = true;
+        // network failure or CORS etc — surface the message but allow testing if desired
+        console.error('checkKeyConfigured error', err);
+        resultText.style.color = "#c0dfff";
+        resultText.textContent = "Key-check unavailable — running in offline mode";
+        bypassBtn.disabled = false;
         return false;
       }
     }
 
     (async () => {
-      // initial check
       await checkKeyConfigured();
-
-      // Compare images: hide compare if images not available
-      function imgOK(imgEl) {
-        return new Promise(resolve => {
-          if (!imgEl) return resolve(false);
-          if (imgEl.complete && imgEl.naturalWidth > 1) return resolve(true);
-          imgEl.onload = () => resolve(imgEl.naturalWidth > 1);
-          imgEl.onerror = () => resolve(false);
-        });
-      }
-      const beforeOK = await imgOK(beforeImg);
-      const afterOK = await imgOK(afterImg);
-      if (beforeOK && afterOK) {
-        compareSection.setAttribute('aria-hidden','false');
-        compareSection.style.display = 'block';
-        // simple draggable slider
-        const slider = document.getElementById('slider');
-        let dragging = false;
-        const afterWrap = document.querySelector('.after-wrap');
-        function setClip(x) {
-          const rect = afterWrap.getBoundingClientRect();
-          const pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
-          afterImg.style.clipPath = `inset(0 ${ (1 - pct) * 100 }% 0 0)`;
-          slider.style.left = `${pct * 100}%`;
-        }
-        slider.addEventListener('pointerdown', (e) => { dragging = true; slider.setPointerCapture(e.pointerId); });
-        window.addEventListener('pointerup', () => dragging = false);
-        window.addEventListener('pointermove', (e) => { if (!dragging) return; setClip(e.clientX); });
-        window.addEventListener('resize', () => setClip(window.innerWidth/2));
-        setClip(window.innerWidth/2);
-      } else {
-        compareSection.style.display = 'none';
-      }
+      try { urlInput.focus(); } catch(e){}
     })();
 
     async function handleBypass() {
-      // re-check key before running
-      const ok = await checkKeyConfigured();
-      if (!ok) return;
+      // Attempt re-check but continue if check fails
+      await checkKeyConfigured();
 
       const url = urlInput.value.trim();
-      if (!url) {
-        showError("Please enter a URL.");
-        return;
-      }
+      if (!url) { showError("Please enter a URL."); return; }
 
       const proxyUrl = `/api/bypass?url=${encodeURIComponent(url)}`;
 
@@ -244,7 +200,7 @@
         const res = await fetch(proxyUrl, { method: 'GET' });
         const text = await res.text().catch(()=>null);
         let body = null;
-        try { body = text ? JSON.parse(text) : null; } catch (e) { body = null; }
+        try { body = text ? JSON.parse(text) : null; } catch(e) { body = null; }
 
         stopTimer();
 
@@ -256,13 +212,9 @@
         }
 
         if (body && body.ok && body.result) {
-          if (body.elapsedMs != null) {
-            timerEl.textContent = formatElapsed(body.elapsedMs);
-          }
+          if (body.elapsedMs != null) timerEl.textContent = formatElapsed(body.elapsedMs);
           showInfo(body.result);
-          if (autoRedirectToggle.checked) {
-            setTimeout(()=> window.location.href = body.result, 200);
-          }
+          if (autoRedirectToggle.checked) setTimeout(()=> window.location.href = body.result, 200);
         } else {
           showError((body && body.error) ? body.error : 'Unexpected proxy response');
         }
@@ -275,23 +227,13 @@
     }
 
     urlInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleBypass();
-      }
+      if (e.key === 'Enter') { e.preventDefault(); handleBypass(); }
     });
-
     bypassBtn.addEventListener('click', handleBypass);
-
-    // focus input on load
-    window.addEventListener('load', () => { try { urlInput.focus(); } catch(e) {} });
-
-    // expose for debugging
     window._vb = { checkKeyConfigured, handleBypass, startTimer, stopTimer };
   </script>
 
-  <!-- Vercel Analytics (optional) -->
+  <!-- optional analytics -->
   <script defer src="https://cdn.vercel-insights.com/v1/script.analytics.js"></script>
-  <script defer src="https://cdn.vercel-insights.com/v1/script.debug.js"></script>
 </body>
 </html>
