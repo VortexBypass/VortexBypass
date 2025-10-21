@@ -12,14 +12,14 @@
   <!-- main stylesheet -->
   <link rel="stylesheet" href="/styles.css" />
 
-  <!-- minimal fallback to avoid totally broken page if styles fail -->
+  <!-- minimal inline fallback so page isn't totally broken if CSS 404s -->
   <style>
     html,body{min-height:100%}
     body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:18px;background:#0b0f24;color:#fff}
   </style>
 </head>
 <body>
-  <!-- background orbs/particles (grid removed) -->
+  <!-- Animated orbs and particles — grid intentionally removed -->
   <div class="animated-background" aria-hidden="true">
     <div class="floating-orb orb-1"></div>
     <div class="floating-orb orb-2"></div>
@@ -33,31 +33,31 @@
     <div class="floating-particle particle-6"></div>
   </div>
 
-  <!-- Header: TITLE only (logo removed) -->
+  <!-- Header/title (logo removed). Title is single word with emoji -->
   <header class="site-header" role="banner">
     <h1 class="site-title" aria-label="VortexBypass">🌪️ <span class="site-title-text">VortexBypass</span></h1>
   </header>
 
   <main class="container" role="main">
-    <!-- input wrapper (icon removed) -->
+    <!-- Input wrapper -->
     <div class="input-wrapper">
       <div class="input-stack" style="flex:1">
-        <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
+        <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" aria-label="Enter URL" />
         <div class="input-animated-bar" aria-hidden="true"></div>
       </div>
     </div>
 
-    <!-- BYPASS button moved down and z-indexed -->
+    <!-- BYPASS button moved down into its own row to avoid overlap with animated bar -->
     <div class="button-row">
       <button id="bypassBtn" disabled>BYPASS</button>
     </div>
 
-    <!-- Auto Redirect newly styled toggle -->
+    <!-- Auto Redirect toggle (pill style) -->
     <div class="toggle-container" aria-hidden="false">
       <label class="toggle-pill" title="Auto Redirect">
         <input type="checkbox" id="autoRedirect" />
         <span class="toggle-track" aria-hidden="true">
-          <span class="toggle-thumb"></span>
+          <span class="toggle-thumb" aria-hidden="true"></span>
         </span>
       </label>
       <p class="toggle-label">Auto Redirect</p>
@@ -89,6 +89,7 @@
   </main>
 
   <script type="module">
+    // front-end logic: key check, bypass flow, timer in m:ss
     const urlInput = document.getElementById("urlInput");
     const bypassBtn = document.getElementById("bypassBtn");
     const resultText = document.getElementById("resultText");
@@ -98,7 +99,6 @@
     let timerInterval = null;
     let startTs = null;
 
-    // Format to m:ss (minutes without leading zero)
     function formatElapsed(ms) {
       const totalMs = Math.max(0, Math.floor(ms));
       const minutes = Math.floor(totalMs / 60000);
@@ -113,7 +113,7 @@
       timerInterval = setInterval(() => {
         const elapsed = performance.now() - startTs;
         timerEl.textContent = formatElapsed(elapsed);
-      }, 100);
+      }, 100); // 10 updates/sec
     }
 
     function stopTimer() {
@@ -142,13 +142,12 @@
       try {
         const res = await fetch('/api/key-check', { method: 'GET', cache: 'no-store' });
 
-        // If endpoint missing (404) enable UI gracefully and avoid showing red scary error.
+        // If the endpoint is not deployed (404) or unreachable, fall back to offline-friendly mode.
         if (res.status === 404) {
           console.warn('key-check returned 404 — endpoint not deployed or wrong path.');
-          // Friendly neutral notice (not red) so users aren't alarmed
           resultText.style.color = "#c0dfff";
           resultText.textContent = "Key-check not found — running in offline mode";
-          bypassBtn.disabled = false; // allow testing while server endpoint absent
+          bypassBtn.disabled = false; // enable for local testing
           return false;
         }
 
@@ -169,7 +168,6 @@
           return false;
         }
       } catch (err) {
-        // network failure or CORS etc — surface the message but allow testing if desired
         console.error('checkKeyConfigured error', err);
         resultText.style.color = "#c0dfff";
         resultText.textContent = "Key-check unavailable — running in offline mode";
@@ -184,7 +182,7 @@
     })();
 
     async function handleBypass() {
-      // Attempt re-check but continue if check fails
+      // re-check but allow offline mode
       await checkKeyConfigured();
 
       const url = urlInput.value.trim();
@@ -230,10 +228,9 @@
       if (e.key === 'Enter') { e.preventDefault(); handleBypass(); }
     });
     bypassBtn.addEventListener('click', handleBypass);
+
+    // expose for debugging
     window._vb = { checkKeyConfigured, handleBypass, startTimer, stopTimer };
   </script>
-
-  <!-- optional analytics -->
-  <script defer src="https://cdn.vercel-insights.com/v1/script.analytics.js"></script>
 </body>
 </html>
