@@ -1,4 +1,4 @@
-/* styles.css - Modern Enhanced with Floating Animations (responsive + robust) */
+/* styles.css - updated: removed grid, removed left icon, matching title colors + emoji */
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 :root{
@@ -22,10 +22,10 @@ body {
   overflow-x: hidden;
 }
 
-/* Animated Background */
+/* Animated Background (grid removed intentionally) */
 .animated-background { position: fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
 
-/* orbs & particles (same as before but slightly toned for performance) */
+/* orbs & particles */
 .floating-orb { position:absolute;border-radius:50%;filter:blur(36px);opacity:0.32;animation:floatOrb 30s linear infinite; }
 .orb-1{width:260px;height:260px;background:radial-gradient(circle,#ff6b6b 0%,transparent 70%);top:6%;left:8%;animation-duration:26s}
 .orb-2{width:360px;height:360px;background:radial-gradient(circle,#8ab4f8 0%,transparent 70%);top:60%;left:78%;animation-duration:30s}
@@ -33,28 +33,22 @@ body {
 .orb-4{width:320px;height:320px;background:radial-gradient(circle,#ffd93d 0%,transparent 70%);top:72%;left:18%;animation-duration:28s}
 @keyframes floatOrb{0%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(80px,-40px) scale(1.05)}50%{transform:translate(40px,80px) scale(0.95)}75%{transform:translate(-70px,40px) scale(1.02)}}
 
-/* grid */
-.background-grid {
-  position:fixed;inset:0;background:
-    linear-gradient(90deg, rgba(138,180,248,0.06) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(138,180,248,0.06) 1px, transparent 1px);
-  background-size:50px 50px;animation:gridPulse 9s ease-in-out infinite;z-index:0;
-}
-@keyframes gridPulse{0%,100%{opacity:0.22;transform:scale(1)}50%{opacity:0.44;transform:scale(1.02)}}
-
-/* header: logo and inline title */
+/* header: logo and inline title + emoji */
 .site-header { z-index:2; position:relative; margin-bottom:8px; display:flex; justify-content:center; }
 .logo-title { display:flex; align-items:center; gap:12px; padding:6px 10px; border-radius:12px; backdrop-filter: blur(6px); }
 .site-logo { width:72px; height:auto; object-fit:contain; border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,0.5); transition:transform .25s ease; }
-.site-logo.large { width:120px; }
 .title { display:inline-flex; align-items:baseline; gap:10px; margin:0; }
-.title-main {
-  font-size:2.2rem; font-weight:800; letter-spacing:-1px;
+.title-emoji { font-size:1.6rem; transform:translateY(2px); }
+.title-main,
+.title-sub {
+  font-weight:800;
   background: linear-gradient(90deg,#ff6b6b 0%, #ff8e53 50%, #ffd93d 100%);
   -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
   background-size:200% auto; animation:gradientShift 5s linear infinite, titleFloat 4s ease-in-out infinite;
+  letter-spacing:-1px;
 }
-.title-sub { font-size:1.05rem; color:var(--muted); font-weight:600; opacity:0.96; }
+.title-main { font-size:2.2rem; }
+.title-sub { font-size:1.05rem; margin-left:6px; opacity:0.95; font-weight:700; }
 
 /* container */
 .container {
@@ -63,11 +57,6 @@ body {
   box-shadow: 0 20px 60px rgba(138,180,248,0.22), inset 0 1px 0 rgba(255,255,255,0.03);
   border: 1px solid rgba(138,180,248,0.12); position:relative; z-index:2; overflow:hidden;
 }
-
-/* input row */
-.input-wrapper { display:flex; gap:12px; align-items:center; margin-bottom:16px; z-index:3; }
-.input-icon { width:36px;height:36px; color:var(--accent); opacity:0.96; transform-origin:center; animation:iconFloat 4s ease-in-out infinite; }
-@keyframes iconFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 
 /* input stack (input + animated bar) */
 .input-stack { flex:1; position:relative; }
@@ -82,7 +71,7 @@ body {
 #urlInput:focus{ border-color:var(--accent); transform:translateY(-2px); box-shadow:0 14px 40px rgba(138,180,248,0.18), 0 0 0 4px rgba(138,180,248,0.06); }
 
 /* animated bar under input */
-.input-animated-bar { position:absolute; left:48px; right:0; bottom:-8px; height:4px; border-radius:999px; background: linear-gradient(90deg, rgba(138,180,248,0.12), rgba(255,255,255,0.03)); overflow:hidden; pointer-events:none; }
+.input-animated-bar { position:absolute; left:10px; right:10px; bottom:-8px; height:4px; border-radius:999px; background: linear-gradient(90deg, rgba(138,180,248,0.12), rgba(255,255,255,0.03)); overflow:hidden; pointer-events:none; }
 .input-animated-bar::after { content:""; position:absolute; left:-40%; top:0; bottom:0; width:60%; background:linear-gradient(90deg, rgba(138,180,248,0.9), rgba(168,216,255,0.6), rgba(138,180,248,0.9)); transform:skewX(-12deg); animation:barSlide 6s linear infinite; opacity:.85; }
 @keyframes barSlide { 0%{left:-60%}50%{left:30%}100%{left:110%} }
 
@@ -133,8 +122,7 @@ button:disabled { opacity:.6; cursor:not-allowed; transform:none; box-shadow: no
   .container { padding:28px 18px; margin:10px; }
   .site-logo { width:56px; }
   .title-main { font-size:1.6rem; }
-  .input-icon { display:block; }
-  .input-animated-bar { left:44px; }
+  .input-animated-bar { left:10px; right:10px; }
   .compare-img { max-height:260px; }
   :root { --container-w: 100%; }
 }
