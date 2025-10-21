@@ -23,11 +23,24 @@
     <div class="floating-particle particle-6"></div>
   </div>
 
-  <h1>Vortex</h1>
-  <h2>Bypasser</h2>
+  <!-- Title: now side-by-side -->
+  <header class="site-header" role="banner">
+    <h1 class="title">
+      <span class="title-main">Vortex</span>
+      <span class="title-divider"> </span>
+      <span class="title-sub">Bypasser</span>
+    </h1>
+  </header>
 
   <div class="container" role="main">
-    <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
+    <!-- Input wrapper with animated icon and micro-interactions -->
+    <div class="input-wrapper">
+      <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 6h4v2h-4V8zm-6 7h12v2H7v-2zm6-4h4v2h-4v-2z"/>
+      </svg>
+      <input id="urlInput" type="text" placeholder="Enter URL..." autocomplete="off" />
+      <div class="input-animated-bar" aria-hidden="true"></div>
+    </div>
 
     <button id="bypassBtn" disabled>BYPASS</button>
 
@@ -40,8 +53,8 @@
     </div>
 
     <div class="result-box" id="resultBox" aria-live="polite">
-      <div id="resultText">Ready enter a url</div>
-      <div id="timer" class="timer">00:00.000</div>
+      <div id="resultText">Ready — enter a url</div>
+      <div id="timer" class="timer">0:00</div>
     </div>
 
     <div class="supported-box" aria-hidden="false">
@@ -75,12 +88,12 @@
     let timerInterval = null;
     let startTs = null;
 
+    // Format to m:ss (example: 0:05, 1:23). Minutes do NOT have forced leading zeros.
     function formatElapsed(ms) {
       const totalMs = Math.max(0, Math.floor(ms));
       const minutes = Math.floor(totalMs / 60000);
       const seconds = Math.floor((totalMs % 60000) / 1000);
-      const millis = totalMs % 1000;
-      return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(millis).padStart(3,'0')}`;
+      return `${String(minutes)}:${String(seconds).padStart(2, '0')}`;
     }
 
     function startTimer() {
@@ -90,7 +103,7 @@
       timerInterval = setInterval(() => {
         const elapsed = performance.now() - startTs;
         timerEl.textContent = formatElapsed(elapsed);
-      }, 33);
+      }, 100); // 10 updates per second is enough for m:ss
     }
 
     function stopTimer() {
@@ -125,7 +138,7 @@
         }
         const data = await res.json();
         if (data && data.ok && data.configured) {
-          showInfo("Ready enter a url");
+          showInfo("Ready — enter a url");
           bypassBtn.disabled = false;
           return true;
         } else {
@@ -204,6 +217,11 @@
     });
 
     bypassBtn.addEventListener('click', handleBypass);
+
+    // small nicety: focus input on load
+    window.addEventListener('load', () => {
+      try { urlInput.focus(); } catch(e) {}
+    });
 
     // expose for debugging
     window._vb = { checkKeyConfigured, handleBypass, startTimer, stopTimer };
